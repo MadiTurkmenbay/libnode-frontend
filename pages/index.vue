@@ -34,16 +34,6 @@ function nextPage() {
 
 <template>
   <div class="min-h-screen bg-background">
-    <!-- Header -->
-    <header class="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-lg">
-      <div class="container flex h-16 items-center gap-3">
-        <Library class="h-7 w-7 text-primary" />
-        <h1 class="text-xl font-bold tracking-tight">
-          Lib<span class="text-primary">Node</span>
-        </h1>
-      </div>
-    </header>
-
     <!-- Main -->
     <main class="container py-4 px-3 md:py-8 md:px-8">
       <!-- Заголовок каталога -->
