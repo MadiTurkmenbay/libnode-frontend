@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 
 const { login } = useAuth()
+const { toast } = useToast()
 
 const email = ref('')
 const password = ref('')
@@ -23,6 +24,7 @@ async function onSubmit() {
       email: email.value,
       password: password.value
     })
+    toast('Вы успешно вошли в систему')
     // Редирект на главную при успехе, это уже неявно обрабатывается пользователем либо делаем тут:
     navigateTo('/')
   } catch (e: any) {

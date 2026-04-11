@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ArrowLeft, BookOpen, Clock, CalendarIcon, BookmarkPlus, Plus, Loader2, Check, ExternalLink, BookmarkCheck } from 'lucide-vue-next'
+import { ArrowLeft, BookOpen, Clock, CalendarIcon, BookmarkPlus, Plus, Loader2, Check, ExternalLink, BookmarkCheck, Heart } from 'lucide-vue-next'
 import type { BookDto, ChapterListDto, PagedResult, CollectionDto, BookCollectionStatusDto } from '~/types'
 
 const route = useRoute()
 const bookId = route.params.id as string
+
+const { toast } = useToast()
 
 // Загружаем данные о книге
 const { data: book, pending: bookPending, error: bookError } = await useApiFetch<BookDto>(
@@ -101,6 +103,7 @@ async function toggleCollection(collectionId: string, collectionName: string) {
       })
       currentCollectionId.value = null
       currentCollectionName.value = null
+      toast('Вкладка обновлена: книга удалена из коллекции')
     } else {
       await apiMutation(`/api/collections/${collectionId}/books`, {
         method: 'POST',
@@ -108,9 +111,11 @@ async function toggleCollection(collectionId: string, collectionName: string) {
       })
       currentCollectionId.value = collectionId
       currentCollectionName.value = collectionName
+      toast('Вкладка обновлена: книга добавлена в коллекцию')
     }
   } catch (e) {
     console.error('Failed to toggle collection', e)
+    toast({ variant: 'destructive', title: 'Ошибка при обновлении закладки' })
   }
 }
 
@@ -136,10 +141,34 @@ async function createNewCollection() {
     
     newCollectionName.value = ''
     await fetchCollections()
+    toast('Папка создана и книга добавлена')
   } catch (e) {
     console.error('Failed to create collection', e)
+    toast({ variant: 'destructive', title: 'Ошибка при создании папки' })
   } finally {
     isCreatingCollection.value = false
+  }
+}
+
+// === ЛОГИКА ЛАЙКОВ ГЛАВ ===
+async function likeChapter(event: Event, chapter: ChapterListDto) {
+  event.preventDefault()
+  
+  if (!isAuthenticated.value) return
+  if (chapter.isLikedByCurrentUser) return
+
+  // Оптимистичное обновление UI
+  chapter.isLikedByCurrentUser = true
+  chapter.likesCount++
+
+  try {
+    await apiMutation(`/api/chapters/${chapter.id}/like`, { method: 'POST' })
+    toast('Глава понравилась!')
+  } catch (e) {
+    // Откат при ошибке
+    chapter.isLikedByCurrentUser = false
+    chapter.likesCount--
+    toast({ variant: 'destructive', title: 'Не удалось поставить лайк' })
   }
 }
 </script>
@@ -246,17 +275,34 @@ async function createNewCollection() {
                 :to="`/books/${bookId}/read/${chapter.id}`"
                 class="group flex items-center justify-between rounded-lg border bg-card p-3 md:p-4 transition-all hover:border-primary/50 hover:shadow-md"
               >
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-4 flex-1">
                   <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-secondary text-sm font-medium text-secondary-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                     {{ chapter.chapterNumber }}
                   </div>
-                  <span class="font-medium group-hover:text-primary transition-colors">
+                  <span class="font-medium group-hover:text-primary transition-colors line-clamp-1">
                     {{ chapter.title }}
                   </span>
                 </div>
-                <span class="hidden text-xs text-muted-foreground sm:block">
-                  {{ formatDate(chapter.createdAt) }}
-                </span>
+                
+                <!-- Информация справа: Лайки и дата -->
+                <div class="flex items-center gap-4 shrink-0 mt-2 sm:mt-0">
+                  <span class="hidden text-xs text-muted-foreground sm:block">
+                    {{ formatDate(chapter.createdAt) }}
+                  </span>
+                  <button 
+                    @click="(e) => likeChapter(e, chapter)"
+                    class="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-secondary transition-colors"
+                    :class="chapter.isLikedByCurrentUser ? 'text-rose-500' : 'text-muted-foreground hover:text-foreground'"
+                    :disabled="!isAuthenticated || chapter.isLikedByCurrentUser"
+                    :title="!isAuthenticated ? 'Войдите, чтобы поставить лайк' : chapter.isLikedByCurrentUser ? 'Вам уже понравилось' : 'Лайкнуть'"
+                  >
+                    <Heart 
+                      class="h-4 w-4 transition-transform group-hover/btn:scale-110" 
+                      :class="{ 'fill-current': chapter.isLikedByCurrentUser }" 
+                    />
+                    <span class="text-sm font-medium">{{ chapter.likesCount }}</span>
+                  </button>
+                </div>
               </NuxtLink>
             </div>
             

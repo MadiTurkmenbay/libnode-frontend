@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Копируем package.json/lock отдельно для кеширования npm install
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Копируем остальные файлы и собираем
 COPY . .

@@ -16,6 +16,8 @@ export interface ChapterListDto {
   title: string
   chapterNumber: number
   createdAt: string
+  likesCount: number
+  isLikedByCurrentUser: boolean
 }
 
 export interface ChapterDetailDto {
@@ -25,6 +27,8 @@ export interface ChapterDetailDto {
   content: string
   chapterNumber: number
   createdAt: string
+  likesCount: number
+  isLikedByCurrentUser: boolean
 }
 
 export interface PagedResult<T> {

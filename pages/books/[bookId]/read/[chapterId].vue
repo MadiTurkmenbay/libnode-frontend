@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ArrowLeft, ChevronLeft, ChevronRight, Menu } from 'lucide-vue-next'
+import { ArrowLeft, ChevronLeft, ChevronRight, Menu, Heart } from 'lucide-vue-next'
 import type { ChapterDetailDto, ChapterListDto, PagedResult } from '~/types'
 import { useReaderSettings } from '~/composables/useReaderSettings'
 
 const route = useRoute()
 const bookId = route.params.bookId as string
 const chapterId = route.params.chapterId as string
+
+const { toast } = useToast()
+const { isAuthenticated } = useAuth()
 
 // ── Настройки читалки ────────────────────────────────────
 const { settings } = useReaderSettings()
@@ -89,6 +92,40 @@ watchEffect(() => {
     })
   }
 })
+
+// Логика лайков
+const isLiking = ref(false)
+
+async function likeChapter() {
+  if (!chapter.value) return
+  if (!isAuthenticated.value) return
+  if (chapter.value.isLikedByCurrentUser) return
+  
+  isLiking.value = true
+  
+  // Optimistic UI updates
+  chapter.value.isLikedByCurrentUser = true
+  chapter.value.likesCount++
+  
+  try {
+    const config = useRuntimeConfig()
+    const baseURL = import.meta.client && config.public.apiBaseClient ? config.public.apiBaseClient : config.public.apiBase
+    const token = useCookie('auth_token')
+    
+    await $fetch(`/api/chapters/${chapterId}/like`, {
+      baseURL: baseURL as string,
+      method: 'POST',
+      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
+    })
+    toast('Глава понравилась!')
+  } catch (e) {
+    chapter.value.isLikedByCurrentUser = false
+    chapter.value.likesCount--
+    toast({ variant: 'destructive', title: 'Не удалось поставить лайк' })
+  } finally {
+    isLiking.value = false
+  }
+}
 </script>
 
 <template>
@@ -148,6 +185,32 @@ watchEffect(() => {
           :style="readerStyle"
           v-html="chapter.content"
         ></div>
+
+        <!-- Кнопка Лайка -->
+        <div class="mt-16 flex flex-col items-center justify-center border-t border-border/50 pt-10 pb-12 transition-colors" :class="headerFooterTheme">
+          <button
+            @click="likeChapter"
+            class="group relative inline-flex h-14 items-center justify-center gap-3 overflow-hidden rounded-full px-8 text-base font-medium shadow-sm transition-all hover:shadow-md disabled:opacity-90 disabled:cursor-default"
+            :class="chapter.isLikedByCurrentUser ? 'text-rose-500 bg-rose-500/10 border border-rose-500/20' : 'bg-primary/5 border border-primary/10 text-foreground hover:bg-primary/10 hover:scale-105 active:scale-95'"
+            :disabled="!isAuthenticated || chapter.isLikedByCurrentUser || isLiking"
+          >
+            <div 
+              v-if="chapter.isLikedByCurrentUser"
+              class="absolute inset-0 bg-rose-500/5 pointer-events-none"
+            ></div>
+            <Heart 
+              class="relative z-10 h-6 w-6 transition-transform"
+              :class="{ 'fill-current text-rose-500': chapter.isLikedByCurrentUser, 'group-hover:scale-110': !chapter.isLikedByCurrentUser }"
+            />
+            <span class="relative z-10 font-bold text-lg">{{ chapter.likesCount }}</span>
+          </button>
+          <p v-if="!isAuthenticated" class="mt-4 text-xs text-muted-foreground opacity-70">
+            Войдите, чтобы оценивать главы
+          </p>
+          <p v-else-if="chapter.isLikedByCurrentUser" class="mt-4 text-xs font-medium text-rose-500/70">
+            Вам понравилась эта глава
+          </p>
+        </div>
       </article>
     </main>
 
