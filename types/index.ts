@@ -47,6 +47,30 @@ export interface CreateChapterDto {
   chapterNumber: number
 }
 
+export interface CollectionDto {
+  id: string
+  name: string
+  createdAt: string
+  bookCount: number
+}
+
+export interface CollectionDetailDto extends CollectionDto {
+  books: BookDto[]
+}
+
+export interface CreateCollectionDto {
+  name: string
+}
+
+export interface AddBookToCollectionDto {
+  bookId: string
+}
+
+export interface BookCollectionStatusDto {
+  collectionId: string
+  collectionName: string
+}
+
 // ── Типы авторизации ──────────────────────────────────
 
 export interface UserDto {

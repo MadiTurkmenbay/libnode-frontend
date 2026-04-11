@@ -40,6 +40,9 @@ const { user, isAuthenticated, isAdmin, logout } = useAuth()
             <div class="text-sm font-medium pr-2 border-r hidden sm:block">
               Привет, {{ user?.username }}
             </div>
+            <NuxtLink to="/profile/collections">
+              <Button variant="ghost" class="h-8 px-4 text-primary">Мои закладки</Button>
+            </NuxtLink>
             <NuxtLink v-if="isAdmin" to="/admin">
               <Button variant="outline" class="h-8 px-4">Админка</Button>
             </NuxtLink>
