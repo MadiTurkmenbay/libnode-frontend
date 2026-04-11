@@ -63,10 +63,10 @@ watchEffect(() => {
       </div>
 
       <!-- Контент книги -->
-      <div v-else class="grid gap-8 md:grid-cols-[300px_1fr] lg:gap-12">
+      <div v-else class="flex flex-col gap-6 md:flex-row md:gap-8 lg:gap-12">
         
         <!-- Левая колонка: Обложка -->
-        <div class="space-y-4">
+        <div class="space-y-4 w-full md:w-[300px] shrink-0 mx-auto max-w-[300px] md:max-w-none">
           <div class="overflow-hidden rounded-xl border bg-secondary relative aspect-[3/4] shadow-lg">
              <img
               v-if="book.coverUrl"
@@ -86,7 +86,7 @@ watchEffect(() => {
         <!-- Правая колонка: Инфо и Главы -->
         <div class="space-y-8">
           <div>
-            <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">{{ book.title }}</h1>
+            <h1 class="text-2xl md:text-3xl font-bold tracking-tight sm:text-4xl">{{ book.title }}</h1>
             
             <div class="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
               <span class="inline-flex items-center gap-1.5">
@@ -108,7 +108,7 @@ watchEffect(() => {
           <!-- Раздел Главы -->
           <div class="space-y-4">
             <div class="flex items-center justify-between border-b pb-2">
-              <h3 class="text-2xl font-semibold tracking-tight">Главы</h3>
+              <h3 class="text-xl md:text-2xl font-semibold tracking-tight">Главы</h3>
               <span class="text-sm rounded-full bg-secondary px-3 py-1 text-muted-foreground">
                 Всего: {{ book.chapterCount }}
               </span>
@@ -122,8 +122,8 @@ watchEffect(() => {
               <NuxtLink
                 v-for="chapter in chapters"
                 :key="chapter.id"
-                :to="`/chapters/${chapter.id}`"
-                class="group flex items-center justify-between rounded-lg border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md"
+                :to="`/books/${bookId}/read/${chapter.id}`"
+                class="group flex items-center justify-between rounded-lg border bg-card p-3 md:p-4 transition-all hover:border-primary/50 hover:shadow-md"
               >
                 <div class="flex items-center gap-4">
                   <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-secondary text-sm font-medium text-secondary-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">

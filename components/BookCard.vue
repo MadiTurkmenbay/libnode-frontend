@@ -19,7 +19,7 @@ function formatDate(dateString: string): string {
 <template>
   <NuxtLink :to="`/books/${book.id}`">
     <Card
-      class="group h-full overflow-hidden transition-all duration-300 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1"
+      class="group flex flex-col h-full overflow-hidden transition-all duration-300 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1"
     >
       <!-- Обложка -->
       <div class="relative aspect-[3/4] w-full overflow-hidden bg-secondary">
@@ -46,19 +46,19 @@ function formatDate(dateString: string): string {
         </div>
       </div>
 
-      <CardHeader class="pb-2">
-        <CardTitle class="line-clamp-2 text-base leading-snug">
+      <CardHeader class="p-3 md:p-5 pb-1 md:pb-2">
+        <CardTitle class="line-clamp-2 text-sm md:text-base leading-snug">
           {{ book.title }}
         </CardTitle>
       </CardHeader>
 
-      <CardContent v-if="book.description" class="pb-2">
-        <p class="line-clamp-3 text-sm text-muted-foreground">
+      <CardContent v-if="book.description" class="p-3 pt-0 md:p-5 md:pt-0">
+        <p class="line-clamp-3 text-xs md:text-sm text-muted-foreground">
           {{ book.description }}
         </p>
       </CardContent>
 
-      <CardFooter class="mt-auto text-xs text-muted-foreground/70">
+      <CardFooter class="p-3 md:p-5 mt-auto text-[10px] md:text-xs text-muted-foreground/70">
         {{ formatDate(book.createdAt) }}
       </CardFooter>
     </Card>

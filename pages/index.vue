@@ -45,11 +45,11 @@ function nextPage() {
     </header>
 
     <!-- Main -->
-    <main class="container py-8">
+    <main class="container py-4 px-3 md:py-8 md:px-8">
       <!-- Заголовок каталога -->
-      <div class="mb-8">
-        <h2 class="text-3xl font-bold tracking-tight">Каталог</h2>
-        <p class="mt-1 text-muted-foreground">
+      <div class="mb-6 md:mb-8">
+        <h2 class="text-2xl md:text-3xl font-bold tracking-tight">Каталог</h2>
+        <p class="mt-1 text-sm md:text-base text-muted-foreground">
           <template v-if="totalCount > 0">
             Найдено {{ totalCount }} {{ totalCount === 1 ? 'произведение' : 'произведений' }}
           </template>
@@ -85,7 +85,7 @@ function nextPage() {
       <!-- Сетка карточек -->
       <div
         v-else-if="books.length > 0"
-        class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+        class="grid grid-cols-2 gap-2 sm:gap-4 md:gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
       >
         <div
           v-for="(book, index) in books"
