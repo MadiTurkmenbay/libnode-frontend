@@ -46,3 +46,29 @@ export interface CreateChapterDto {
   content: string
   chapterNumber: number
 }
+
+// ── Типы авторизации ──────────────────────────────────
+
+export interface UserDto {
+  id: string
+  username: string
+  email: string
+  role: 'Admin' | 'User' | 'Translator'
+}
+
+export interface AuthResponse {
+  token: string
+  user: UserDto
+}
+
+export interface CreateUserDto {
+  username: string
+  email: string
+  password: string
+}
+
+export interface LoginDto {
+  email: string
+  password: string
+}
+
