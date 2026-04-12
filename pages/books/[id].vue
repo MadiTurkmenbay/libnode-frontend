@@ -1,39 +1,13 @@
 <script setup lang="ts">
-import type { UseFetchOptions } from 'nuxt/app'
 import { ArrowLeft, ArrowUpDown, BookOpen, BookmarkCheck, BookmarkPlus, CalendarIcon, Clock, Heart, Loader2 } from 'lucide-vue-next'
 import { useIntersectionObserver } from '@vueuse/core'
 import type { BookCollectionStatusDto, BookDto, ChapterListDto, CursorPagedResult } from '~/types'
 
 const route = useRoute()
 const bookId = route.params.id as string
-const nuxtApp = useNuxtApp()
-
-let requestKeySeed = 0
-
-function nextRequestKey(prefix: string) {
-  requestKeySeed += 1
-  return `${prefix}:${requestKeySeed}`
-}
 
 const { toast } = useToast()
 const { isAuthenticated } = useAuth()
-
-async function executeApiRequest<T>(url: string, options: UseFetchOptions<T> = {}) {
-  const { data, error, execute } = await nuxtApp.runWithContext(() => useApiFetch<T>(url, {
-    immediate: false,
-    watch: false,
-    key: options.key ?? nextRequestKey(String(options.method ?? 'GET')),
-    ...options,
-  }))
-
-  await execute()
-
-  if (error.value) {
-    throw error.value
-  }
-
-  return data.value ?? null
-}
 
 const { data: book, pending: bookPending, error: bookError } = await useApiFetch<BookDto>(
   `/api/books/${bookId}`,

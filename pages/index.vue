@@ -37,20 +37,16 @@ async function loadMore() {
   isLoadingMore.value = true
 
   try {
-    const config = useRuntimeConfig()
-    const token = useCookie('auth_token')
-
-    const baseURL = import.meta.client && config.public.apiBaseClient
-      ? config.public.apiBaseClient as string
-      : config.public.apiBase as string
-
-    const data = await $fetch<CursorPagedResult<BookDto>>(
+    const data = await executeApiRequest<CursorPagedResult<BookDto>>(
       `/api/books?cursor=${nextCursor.value}&limit=20`,
       {
-        baseURL,
-        headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
+        key: `catalog:${nextCursor.value}`,
       },
     )
+
+    if (!data) {
+      return
+    }
 
     books.value.push(...data.items)
     nextCursor.value = data.nextCursor
@@ -121,7 +117,7 @@ useIntersectionObserver(
         v-else-if="books.length > 0"
       >
         <div
-          class="grid grid-cols-2 gap-2 sm:gap-4 md:gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+          class="grid grid-cols-2 gap-2 sm:gap-4 md:gap-4 lg:gap-4 xl:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
         >
           <div
             v-for="(book, index) in books"
@@ -129,7 +125,7 @@ useIntersectionObserver(
             class="animate-fade-in"
             :style="{ animationDelay: `${Math.min(index, 19) * 50}ms` }"
           >
-            <BookCard :book="book" />
+            <BookCard :book="book" :show-description="false" />
           </div>
         </div>
 

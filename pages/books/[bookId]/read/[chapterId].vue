@@ -108,14 +108,8 @@ async function likeChapter() {
   chapter.value.likesCount++
   
   try {
-    const config = useRuntimeConfig()
-    const baseURL = import.meta.client && config.public.apiBaseClient ? config.public.apiBaseClient : config.public.apiBase
-    const token = useCookie('auth_token')
-    
-    await $fetch(`/api/chapters/${chapterId}/like`, {
-      baseURL: baseURL as string,
+    await executeApiRequest(`/api/chapters/${chapterId}/like`, {
       method: 'POST',
-      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
     })
     toast('Глава понравилась!')
   } catch (e) {

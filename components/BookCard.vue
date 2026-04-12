@@ -3,9 +3,12 @@ import { BookOpen } from 'lucide-vue-next'
 import type { BookDto } from '~/types'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '~/components/ui/card'
 
-defineProps<{
+withDefaults(defineProps<{
   book: BookDto
-}>()
+  showDescription?: boolean
+}>(), {
+  showDescription: true,
+})
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('ru-RU', {
@@ -46,19 +49,19 @@ function formatDate(dateString: string): string {
         </div>
       </div>
 
-      <CardHeader class="p-3 md:p-5 pb-1 md:pb-2">
+      <CardHeader class="px-3 pt-2.5 pb-1 md:px-3.5 md:pt-3 md:pb-1">
         <CardTitle class="line-clamp-2 text-sm md:text-base leading-snug">
           {{ book.title }}
         </CardTitle>
       </CardHeader>
 
-      <CardContent v-if="book.description" class="p-3 pt-0 md:p-5 md:pt-0">
+      <CardContent v-if="showDescription && book.description" class="p-3 pt-0 md:px-3.5 md:pt-0 md:pb-3">
         <p class="line-clamp-3 text-xs md:text-sm text-muted-foreground">
           {{ book.description }}
         </p>
       </CardContent>
 
-      <CardFooter class="p-3 md:p-5 mt-auto text-[10px] md:text-xs text-muted-foreground/70">
+      <CardFooter class="mt-auto px-3 pb-2.5 pt-2 md:px-3.5 md:pb-3 md:pt-2 text-[10px] md:text-xs text-muted-foreground/70">
         {{ formatDate(book.createdAt) }}
       </CardFooter>
     </Card>

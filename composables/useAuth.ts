@@ -43,38 +43,27 @@ export function useAuth() {
 
   // ── Methods ───────────────────────────────────────────────────────────────
 
-  async function login(dto: LoginDto): Promise<AuthResponse> {
-    const config = useRuntimeConfig()
-    const baseURL = import.meta.client && config.public.apiBaseClient
-      ? config.public.apiBaseClient as string
-      : config.public.apiBase as string
-
-    const data = await $fetch<AuthResponse>('/api/auth/login', {
-      baseURL,
+  async function authenticate(endpoint: string, dto: LoginDto | CreateUserDto): Promise<AuthResponse> {
+    const data = await executeApiRequest<AuthResponse>(endpoint, {
       method: 'POST',
       body: dto,
     })
+
+    if (!data) {
+      throw new Error(`Empty authentication response for ${endpoint}`)
+    }
 
     token.value = data.token
     user.value = data.user
     return data
   }
 
+  async function login(dto: LoginDto): Promise<AuthResponse> {
+    return authenticate('/api/auth/login', dto)
+  }
+
   async function register(dto: CreateUserDto): Promise<AuthResponse> {
-    const config = useRuntimeConfig()
-    const baseURL = import.meta.client && config.public.apiBaseClient
-      ? config.public.apiBaseClient as string
-      : config.public.apiBase as string
-
-    const data = await $fetch<AuthResponse>('/api/auth/register', {
-      baseURL,
-      method: 'POST',
-      body: dto,
-    })
-
-    token.value = data.token
-    user.value = data.user
-    return data
+    return authenticate('/api/auth/register', dto)
   }
 
   function logout() {

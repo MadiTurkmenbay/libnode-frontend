@@ -1,5 +1,12 @@
 import type { UseFetchOptions } from 'nuxt/app'
 
+let requestKeySeed = 0
+
+function nextRequestKey(prefix: string) {
+  requestKeySeed += 1
+  return `${prefix}:${requestKeySeed}`
+}
+
 /**
  * Кастомный композитбл для запросов к бэкенд API.
  * 
@@ -33,4 +40,26 @@ export function useApiFetch<T>(url: string | (() => string), options: UseFetchOp
     ...options,
     headers,
   })
+}
+
+export async function executeApiRequest<T>(
+  url: string | (() => string),
+  options: UseFetchOptions<T> = {},
+) {
+  const nuxtApp = useNuxtApp()
+
+  const { data, error, execute } = await nuxtApp.runWithContext(() => useApiFetch<T>(url, {
+    immediate: false,
+    watch: false,
+    key: options.key ?? nextRequestKey(String(options.method ?? 'GET')),
+    ...options,
+  }))
+
+  await execute()
+
+  if (error.value) {
+    throw error.value
+  }
+
+  return data.value ?? null
 }

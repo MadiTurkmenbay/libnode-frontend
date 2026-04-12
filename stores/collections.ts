@@ -1,18 +1,9 @@
-import type { UseFetchOptions } from 'nuxt/app'
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import type { CollectionDto } from '~/types'
 
-let requestKeySeed = 0
-
-function nextRequestKey(prefix: string) {
-  requestKeySeed += 1
-  return `${prefix}:${requestKeySeed}`
-}
-
 export const useCollectionsStore = defineStore('collections', () => {
   const { isAuthenticated } = useAuth()
-  const nuxtApp = useNuxtApp()
 
   const collections = ref<CollectionDto[]>([])
   const isPending = ref(false)
@@ -24,23 +15,6 @@ export const useCollectionsStore = defineStore('collections', () => {
       collections.value = []
     }
   }, { immediate: true })
-
-  async function executeRequest<T>(url: string, options: UseFetchOptions<T> = {}) {
-    const { data, error, execute } = await nuxtApp.runWithContext(() => useApiFetch<T>(url, {
-      immediate: false,
-      watch: false,
-      key: options.key ?? nextRequestKey(String(options.method ?? 'GET')),
-      ...options,
-    }))
-
-    await execute()
-
-    if (error.value) {
-      throw error.value
-    }
-
-    return data.value ?? null
-  }
 
   async function fetchCollections(force = false) {
     if (!isAuthenticated.value) {
@@ -55,7 +29,7 @@ export const useCollectionsStore = defineStore('collections', () => {
     isPending.value = true
 
     try {
-      const response = await executeRequest<CollectionDto[]>('/api/collections', {
+      const response = await executeApiRequest<CollectionDto[]>('/api/collections', {
         key: 'collections:list',
       })
 
@@ -77,7 +51,7 @@ export const useCollectionsStore = defineStore('collections', () => {
     isCreating.value = true
 
     try {
-      const response = await executeRequest<CollectionDto>('/api/collections', {
+      const response = await executeApiRequest<CollectionDto>('/api/collections', {
         method: 'POST',
         body: { name: trimmedName },
       })
@@ -102,7 +76,7 @@ export const useCollectionsStore = defineStore('collections', () => {
     isUpdating.value = true
 
     try {
-      await executeRequest(`/api/collections/${collectionId}/books`, {
+      await executeApiRequest(`/api/collections/${collectionId}/books`, {
         method: 'POST',
         body: { bookId },
       })
@@ -122,7 +96,7 @@ export const useCollectionsStore = defineStore('collections', () => {
     isUpdating.value = true
 
     try {
-      await executeRequest(`/api/collections/${collectionId}/books/${bookId}`, {
+      await executeApiRequest(`/api/collections/${collectionId}/books/${bookId}`, {
         method: 'DELETE',
       })
 
