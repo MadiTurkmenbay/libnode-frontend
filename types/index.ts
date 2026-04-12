@@ -38,6 +38,12 @@ export interface PagedResult<T> {
   pageSize: number
 }
 
+export interface CursorPagedResult<T> {
+  items: T[]
+  nextCursor: string | null
+  hasMore: boolean
+}
+
 export interface CreateBookDto {
   title: string
   description?: string | null
