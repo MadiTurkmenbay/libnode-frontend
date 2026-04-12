@@ -180,11 +180,16 @@ async function likeChapter() {
 
         <!-- Читалка с динамическими стилями -->
         <div
-          class="reader-content [&>p]:mb-6 [&>p]:indent-4 sm:[&>p]:indent-8 [&>blockquote]:border-l-4 [&>blockquote]:border-primary/50 [&>blockquote]:pl-4 [&>blockquote]:italic [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:mt-10 [&>h2]:mb-4"
+          class="reader-content"
           :class="readerClasses"
           :style="readerStyle"
-          v-html="chapter.content"
-        ></div>
+        >
+          <template v-for="(paragraph, index) in chapter.content.split('\n')" :key="index">
+            <p v-if="paragraph.trim()" class="indent-6 mb-4 text-justify leading-relaxed">
+              {{ paragraph.trim() }}
+            </p>
+          </template>
+        </div>
 
         <!-- Кнопка Лайка -->
         <div class="mt-16 flex flex-col items-center justify-center border-t border-border/50 pt-10 pb-12 transition-colors" :class="headerFooterTheme">
