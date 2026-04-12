@@ -186,8 +186,9 @@ async function likeChapter() {
         >
           <template v-for="(paragraph, index) in chapter.content.split('\n')" :key="index">
             <p v-if="paragraph.trim()" class="indent-6 mb-4 text-justify leading-relaxed">
-              {{ paragraph.trim() }}
+              {{ paragraph }}
             </p>
+            <div v-else-if="paragraph === ''" class="h-4"></div>
           </template>
         </div>
 
