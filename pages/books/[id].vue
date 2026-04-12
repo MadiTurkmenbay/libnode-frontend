@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ArrowLeft, BookOpen, Clock, CalendarIcon, BookmarkPlus, BookmarkCheck, Heart } from 'lucide-vue-next'
-import type { BookDto, ChapterListDto, PagedResult, CollectionDto, BookCollectionStatusDto } from '~/types'
+import { ArrowLeft, BookOpen, Clock, CalendarIcon, BookmarkPlus, BookmarkCheck, Heart, ArrowUpDown, Loader2 } from 'lucide-vue-next'
+import { useIntersectionObserver } from '@vueuse/core'
+import type { BookDto, ChapterListDto, CursorPagedResult, BookCollectionStatusDto } from '~/types'
 
 const route = useRoute()
 const bookId = route.params.id as string
@@ -12,14 +13,88 @@ const { data: book, pending: bookPending, error: bookError } = await useApiFetch
   `/api/books/${bookId}`,
 )
 
-// Загружаем список глав
-const page = ref(1)
-const { data: chaptersResult, pending: chaptersPending } = await useApiFetch<PagedResult<ChapterListDto>>(
-  () => `/api/books/${bookId}/chapters?pageNumber=${page.value}&pageSize=50`,
-  { watch: [page] }
+// ── ЛОГИКА ГЛАВ С КУРСОРНОЙ ПАГИНАЦИЕЙ ──────────────────
+const chapters = ref<ChapterListDto[]>([])
+const nextCursor = ref<number | null>(null)
+const hasMore = ref(false)
+const sortDesc = ref(true)
+const chaptersPending = ref(true)
+const isLoadingMore = ref(false)
+const chaptersTrigger = ref<HTMLElement | null>(null)
+
+// Начальная загрузка глав (SSR-совместимая)
+const { execute: fetchInitialChapters } = await useApiFetch<CursorPagedResult<ChapterListDto, number>>(
+  () => `/api/books/${bookId}/chapters?limit=50&sortDesc=${sortDesc.value}`,
+  {
+    immediate: false,
+    onResponse({ response }) {
+      if (response._data) {
+        chapters.value = response._data.items
+        nextCursor.value = response._data.nextCursor
+        hasMore.value = response._data.hasMore
+      }
+      chaptersPending.value = false
+    },
+  },
 )
 
-const chapters = computed(() => chaptersResult.value?.items ?? [])
+// Загружаем главы при монтировании
+await fetchInitialChapters()
+
+// Подгрузка следующей порции глав
+async function loadMoreChapters() {
+  if (!hasMore.value || isLoadingMore.value || nextCursor.value === null) return
+
+  isLoadingMore.value = true
+
+  try {
+    const config = useRuntimeConfig()
+    const token = useCookie('auth_token')
+
+    const baseURL = import.meta.client && config.public.apiBaseClient
+      ? config.public.apiBaseClient as string
+      : config.public.apiBase as string
+
+    const data = await $fetch<CursorPagedResult<ChapterListDto, number>>(
+      `/api/books/${bookId}/chapters?cursor=${nextCursor.value}&limit=50&sortDesc=${sortDesc.value}`,
+      {
+        baseURL,
+        headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
+      },
+    )
+
+    chapters.value.push(...data.items)
+    nextCursor.value = data.nextCursor
+    hasMore.value = data.hasMore
+  }
+  catch (err) {
+    console.error('Ошибка загрузки глав:', err)
+  }
+  finally {
+    isLoadingMore.value = false
+  }
+}
+
+// Авто-подгрузка при скролле (Intersection Observer)
+useIntersectionObserver(
+  chaptersTrigger,
+  ([{ isIntersecting }]) => {
+    if (isIntersecting) {
+      loadMoreChapters()
+    }
+  },
+  { rootMargin: '200px' },
+)
+
+// Переключение сортировки
+async function toggleSort() {
+  sortDesc.value = !sortDesc.value
+  chapters.value = []
+  nextCursor.value = null
+  hasMore.value = false
+  chaptersPending.value = true
+  await fetchInitialChapters()
+}
 
 function formatDate(dateString: string): string {
   if (!dateString) return ''
@@ -186,51 +261,77 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
           <div class="space-y-4">
             <div class="flex items-center justify-between border-b pb-2">
               <h3 class="text-xl md:text-2xl font-semibold tracking-tight">Главы</h3>
-              <span class="text-sm rounded-full bg-secondary px-3 py-1 text-muted-foreground">
-                Всего: {{ book.chapterCount }}
-              </span>
+              <div class="flex items-center gap-3">
+                <button
+                  @click="toggleSort"
+                  class="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                  :disabled="chaptersPending"
+                >
+                  <ArrowUpDown class="h-3.5 w-3.5" />
+                  {{ sortDesc ? 'Сначала новые' : 'Сначала старые' }}
+                </button>
+                <span class="text-sm rounded-full bg-secondary px-3 py-1 text-muted-foreground">
+                  Всего: {{ book.chapterCount }}
+                </span>
+              </div>
             </div>
 
             <div v-if="chaptersPending" class="py-8 text-center text-sm text-muted-foreground animate-pulse">
               Загрузка списка глав...
             </div>
             
-            <div v-else-if="chapters.length > 0" class="grid gap-2">
-              <NuxtLink
-                v-for="chapter in chapters"
-                :key="chapter.id"
-                :to="`/books/${bookId}/read/${chapter.id}`"
-                class="group flex items-center justify-between rounded-lg border bg-card p-3 md:p-4 transition-all hover:border-primary/50 hover:shadow-md"
-              >
-                <div class="flex items-center gap-4 flex-1">
-                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-secondary text-sm font-medium text-secondary-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                    {{ chapter.chapterNumber }}
+            <div v-else-if="chapters.length > 0">
+              <div class="grid gap-2">
+                <NuxtLink
+                  v-for="chapter in chapters"
+                  :key="chapter.id"
+                  :to="`/books/${bookId}/read/${chapter.id}`"
+                  class="group flex items-center justify-between rounded-lg border bg-card p-3 md:p-4 transition-all hover:border-primary/50 hover:shadow-md"
+                >
+                  <div class="flex items-center gap-4 flex-1">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-secondary text-sm font-medium text-secondary-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                      {{ chapter.chapterNumber }}
+                    </div>
+                    <span class="font-medium group-hover:text-primary transition-colors line-clamp-1">
+                      {{ chapter.title }}
+                    </span>
                   </div>
-                  <span class="font-medium group-hover:text-primary transition-colors line-clamp-1">
-                    {{ chapter.title }}
-                  </span>
+                  
+                  <!-- Информация справа: Лайки и дата -->
+                  <div class="flex items-center gap-4 shrink-0 mt-2 sm:mt-0">
+                    <span class="hidden text-xs text-muted-foreground sm:block">
+                      {{ formatDate(chapter.createdAt) }}
+                    </span>
+                    <button 
+                      @click="(e) => likeChapter(e, chapter)"
+                      class="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-secondary transition-colors"
+                      :class="chapter.isLikedByCurrentUser ? 'text-rose-500' : 'text-muted-foreground hover:text-foreground'"
+                      :disabled="!isAuthenticated || chapter.isLikedByCurrentUser"
+                      :title="!isAuthenticated ? 'Войдите, чтобы поставить лайк' : chapter.isLikedByCurrentUser ? 'Вам уже понравилось' : 'Лайкнуть'"
+                    >
+                      <Heart 
+                        class="h-4 w-4 transition-transform group-hover/btn:scale-110" 
+                        :class="{ 'fill-current': chapter.isLikedByCurrentUser }" 
+                      />
+                      <span class="text-sm font-medium">{{ chapter.likesCount }}</span>
+                    </button>
+                  </div>
+                </NuxtLink>
+              </div>
+
+              <!-- Триггер бесконечного скролла для глав -->
+              <div
+                ref="chaptersTrigger"
+                class="mt-6 flex items-center justify-center py-4"
+              >
+                <div v-if="isLoadingMore" class="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 class="h-5 w-5 animate-spin" />
+                  <span class="text-sm">Загрузка глав...</span>
                 </div>
-                
-                <!-- Информация справа: Лайки и дата -->
-                <div class="flex items-center gap-4 shrink-0 mt-2 sm:mt-0">
-                  <span class="hidden text-xs text-muted-foreground sm:block">
-                    {{ formatDate(chapter.createdAt) }}
-                  </span>
-                  <button 
-                    @click="(e) => likeChapter(e, chapter)"
-                    class="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-secondary transition-colors"
-                    :class="chapter.isLikedByCurrentUser ? 'text-rose-500' : 'text-muted-foreground hover:text-foreground'"
-                    :disabled="!isAuthenticated || chapter.isLikedByCurrentUser"
-                    :title="!isAuthenticated ? 'Войдите, чтобы поставить лайк' : chapter.isLikedByCurrentUser ? 'Вам уже понравилось' : 'Лайкнуть'"
-                  >
-                    <Heart 
-                      class="h-4 w-4 transition-transform group-hover/btn:scale-110" 
-                      :class="{ 'fill-current': chapter.isLikedByCurrentUser }" 
-                    />
-                    <span class="text-sm font-medium">{{ chapter.likesCount }}</span>
-                  </button>
-                </div>
-              </NuxtLink>
+                <p v-else-if="!hasMore && chapters.length > 0" class="text-sm text-muted-foreground/60">
+                  Все главы загружены
+                </p>
+              </div>
             </div>
             
             <div v-else class="rounded-lg border border-dashed p-8 text-center text-muted-foreground">

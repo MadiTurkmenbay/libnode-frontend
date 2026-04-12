@@ -38,9 +38,9 @@ export interface PagedResult<T> {
   pageSize: number
 }
 
-export interface CursorPagedResult<T> {
+export interface CursorPagedResult<T, TCursor = string> {
   items: T[]
-  nextCursor: string | null
+  nextCursor: TCursor | null
   hasMore: boolean
 }
 
