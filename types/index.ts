@@ -1,5 +1,10 @@
 // ── Типы, соответствующие C# бэкенду ──────────────────
 
+export interface ReadingProgressDto {
+  chapterId: string
+  chapterNumber: number
+}
+
 export interface BookDto {
   id: string
   title: string
@@ -8,7 +13,10 @@ export interface BookDto {
   createdAt: string
   updatedAt: string
   chapterCount: number
+  userProgress: ReadingProgressDto | null
 }
+
+export interface BookDetailDto extends BookDto {}
 
 export interface ChapterListDto {
   id: string
@@ -55,6 +63,10 @@ export interface CreateChapterDto {
   title: string
   content: string
   chapterNumber: number
+}
+
+export interface SetProgressDto {
+  chapterId: string
 }
 
 export interface CollectionDto {
@@ -105,4 +117,3 @@ export interface LoginDto {
   email: string
   password: string
 }
-

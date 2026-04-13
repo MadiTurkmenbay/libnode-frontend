@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, ArrowUpDown, BookOpen, BookmarkCheck, BookmarkPlus, CalendarIcon, Clock, Heart, Loader2 } from 'lucide-vue-next'
 import { useIntersectionObserver } from '@vueuse/core'
-import type { BookCollectionStatusDto, BookDto, ChapterListDto, CursorPagedResult } from '~/types'
+import type { BookCollectionStatusDto, BookDetailDto, ChapterListDto, CursorPagedResult } from '~/types'
 
 const route = useRoute()
 const bookId = route.params.id as string
@@ -9,7 +9,7 @@ const bookId = route.params.id as string
 const { toast } = useToast()
 const { isAuthenticated } = useAuth()
 
-const { data: book, pending: bookPending, error: bookError } = await useApiFetch<BookDto>(
+const { data: book, pending: bookPending, error: bookError } = await useApiFetch<BookDetailDto>(
   `/api/books/${bookId}`,
 )
 
@@ -146,6 +146,41 @@ watch(
 
 const currentCollectionId = computed(() => currentCollectionStatus.value?.collectionId ?? null)
 const currentCollectionName = computed(() => currentCollectionStatus.value?.collectionName ?? null)
+const firstChapter = computed(() => {
+  if (!chapters.value.length) {
+    return null
+  }
+
+  return chapters.value.reduce((first, chapter) => {
+    if (!first || chapter.chapterNumber < first.chapterNumber) {
+      return chapter
+    }
+
+    return first
+  }, null as ChapterListDto | null)
+})
+
+const readingButtonLabel = computed(() => {
+  if (book.value?.userProgress) {
+    return `Продолжить чтение (Глава ${book.value.userProgress.chapterNumber})`
+  }
+
+  return 'Начать чтение'
+})
+
+const readingButtonTarget = computed(() => {
+  if (!book.value) {
+    return null
+  }
+
+  if (book.value.userProgress) {
+    return `/books/${book.value.id}/read/${book.value.userProgress.chapterId}`
+  }
+
+  return firstChapter.value
+    ? `/books/${book.value.id}/read/${firstChapter.value.id}`
+    : null
+})
 
 function openCollectionsModal() {
   if (!isAuthenticated.value) {
@@ -238,8 +273,17 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
               </span>
             </div>
 
-            <div v-if="isAuthenticated" class="mt-6">
+            <div class="mt-6 flex flex-wrap gap-3">
+              <NuxtLink
+                v-if="readingButtonTarget"
+                :to="readingButtonTarget"
+                class="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 sm:w-auto"
+              >
+                {{ readingButtonLabel }}
+              </NuxtLink>
+
               <button
+                v-if="isAuthenticated"
                 class="inline-flex h-10 w-full items-center justify-center rounded-lg px-8 text-sm font-medium shadow transition-colors sm:w-auto"
                 :class="currentCollectionId
                   ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
