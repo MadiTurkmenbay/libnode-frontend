@@ -13,7 +13,7 @@
 - [CRITICAL] `composables/` — место для общего клиентского поведения: API, auth, toast, reader preferences.
 - [CRITICAL] `stores/` — место для глобального кэшируемого доменного состояния, которое живёт между страницами.
 - [MANDATORY] `middleware/` — единственный нормальный способ защиты маршрутов на уровне frontend.
-- [MANDATORY] `types/index.ts` — зеркало backend DTO. Никаких “упрощённых локальных версий” контрактов.
+- [MANDATORY] `types/index.ts` — зеркало backend DTO. Никаких "упрощённых локальных версий" контрактов.
 
 ## API-слой
 
@@ -64,14 +64,16 @@
 
 - [CRITICAL] Каталог и списки глав должны потреблять cursor-based backend API с контрактом `CursorPagedResult<T, TCursor>`.
 - [MANDATORY] Бесконечная подгрузка строится вокруг `items`, `nextCursor`, `hasMore` и `IntersectionObserver`.
-- [FORBIDDEN] Возвращаться к `pageNumber/pageSize` в новых экранах только потому, что “так проще”.
+- [FORBIDDEN] Возвращаться к `pageNumber/pageSize` в новых экранах только потому, что "так проще".
 - [MANDATORY] Для ручных пагинируемых запросов задавай осмысленный `key`, чтобы не плодить коллизии и случайное повторное использование fetch-state.
 
 ## Типы и синхронизация с backend
 
 - [CRITICAL] `types/index.ts` обязан повторять backend DTO один в один: имена полей, nullable, generic-модели пагинации, auth response.
+- [MANDATORY] Backend-перечисления (`BookType`, `TranslationStatus`, `OriginalStatus`) зеркалируются как TypeScript `enum` в `types/index.ts` с идентичными числовыми значениями.
+- [MANDATORY] Маппинг enum-значений в русский текст централизован в `lib/enums.ts` через `Record<EnumType, string>`. Не дублируй label-маппинг по компонентам.
 - [MANDATORY] Любое изменение DTO на backend требует немедленного изменения frontend типов и мест потребления.
-- [FORBIDDEN] “Временно” обходить несоответствие типов через `any`, ручные касты или локальные интерфейсы-дубликаты.
+- [FORBIDDEN] "Временно" обходить несоответствие типов через `any`, ручные касты или локальные интерфейсы-дубликаты.
 
 ## Что нельзя ломать
 

@@ -2,6 +2,8 @@
 import { ArrowLeft, ArrowUpDown, BookOpen, BookmarkCheck, BookmarkPlus, CalendarIcon, Clock, Heart, Loader2 } from 'lucide-vue-next'
 import { useIntersectionObserver } from '@vueuse/core'
 import type { BookCollectionStatusDto, BookDetailDto, ChapterListDto, CursorPagedResult } from '~/types'
+import { bookTypeLabels, originalStatusLabels, translationStatusLabels } from '~/lib/enums'
+import { Badge } from '~/components/ui/badge'
 
 const route = useRoute()
 const bookId = route.params.id as string
@@ -255,6 +257,14 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
             >
               <BookOpen class="h-20 w-20 text-muted-foreground/40" />
             </div>
+
+            <!-- Бейдж типа (страна) поверх обложки -->
+            <Badge
+              class="absolute top-2 left-2 shadow-sm"
+              variant="secondary"
+            >
+              {{ bookTypeLabels[book.type] }}
+            </Badge>
           </div>
         </div>
 
@@ -271,6 +281,43 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
                 <Clock class="h-4 w-4" />
                 Обновлена: {{ formatDate(book.updatedAt) }}
               </span>
+            </div>
+
+            <!-- Статусы и тип -->
+            <div class="mt-3 flex flex-wrap gap-2">
+              <Badge variant="outline">
+                Тип: {{ bookTypeLabels[book.type] }}
+              </Badge>
+              <Badge variant="outline">
+                Оригинал: {{ originalStatusLabels[book.originalStatus] }}
+              </Badge>
+              <Badge variant="outline">
+                Перевод: {{ translationStatusLabels[book.translationStatus] }}
+              </Badge>
+            </div>
+
+            <!-- Теги -->
+            <div v-if="book.tags.length" class="mt-3 flex flex-wrap gap-2">
+              <Badge
+                v-for="tag in book.tags"
+                :key="tag.id"
+                variant="secondary"
+                class="cursor-pointer transition-colors hover:bg-primary hover:text-primary-foreground"
+              >
+                {{ tag.name }}
+              </Badge>
+            </div>
+
+            <!-- Категории -->
+            <div v-if="book.categories.length" class="mt-2 flex flex-wrap gap-2">
+              <Badge
+                v-for="category in book.categories"
+                :key="category.id"
+                variant="secondary"
+                class="cursor-pointer transition-colors hover:bg-primary hover:text-primary-foreground"
+              >
+                {{ category.name }}
+              </Badge>
             </div>
 
             <div class="mt-6 flex flex-wrap gap-3">

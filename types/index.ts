@@ -1,3 +1,29 @@
+// ── Enums (зеркало C# Models/Enums) ──────────────────
+
+export enum BookType {
+  Japan = 1,
+  Korea = 2,
+  China = 3,
+  English = 4,
+  Original = 5,
+  Fanfic = 6,
+}
+
+export enum TranslationStatus {
+  None = 0,
+  Ongoing = 1,
+  Completed = 2,
+  Dropped = 3,
+  Hiatus = 4,
+}
+
+export enum OriginalStatus {
+  None = 0,
+  Ongoing = 1,
+  Completed = 2,
+  Hiatus = 3,
+}
+
 // ── Типы, соответствующие C# бэкенду ──────────────────
 
 export interface ReadingProgressDto {
@@ -5,15 +31,32 @@ export interface ReadingProgressDto {
   chapterNumber: number
 }
 
+export interface TagDto {
+  id: string
+  name: string
+  slug: string
+}
+
+export interface CategoryDto {
+  id: string
+  name: string
+  slug: string
+}
+
 export interface BookDto {
   id: string
   title: string
   description: string | null
   coverUrl: string | null
+  type: BookType
+  originalStatus: OriginalStatus
+  translationStatus: TranslationStatus
   createdAt: string
   updatedAt: string
   chapterCount: number
   userProgress: ReadingProgressDto | null
+  tags: TagDto[]
+  categories: CategoryDto[]
 }
 
 export interface BookDetailDto extends BookDto {}
@@ -56,6 +99,11 @@ export interface CreateBookDto {
   title: string
   description?: string | null
   coverUrl?: string | null
+  type?: BookType
+  originalStatus?: OriginalStatus
+  translationStatus?: TranslationStatus
+  tagIds?: string[] | null
+  categoryIds?: string[] | null
 }
 
 export interface CreateChapterDto {

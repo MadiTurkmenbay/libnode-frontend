@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { BookOpen } from 'lucide-vue-next'
 import type { BookDto } from '~/types'
+import { bookTypeLabels } from '~/lib/enums'
+import { Badge } from '~/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '~/components/ui/card'
 
 withDefaults(defineProps<{
@@ -39,6 +41,14 @@ function formatDate(dateString: string): string {
         >
           <BookOpen class="h-16 w-16 text-muted-foreground/40" />
         </div>
+
+        <!-- Бейдж типа (страна) -->
+        <Badge
+          class="absolute top-2 left-2 shadow-sm"
+          variant="secondary"
+        >
+          {{ bookTypeLabels[book.type] }}
+        </Badge>
 
         <!-- Бейдж с кол-вом глав -->
         <div
