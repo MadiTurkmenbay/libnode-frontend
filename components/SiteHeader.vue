@@ -15,15 +15,22 @@ const { user, isAuthenticated, isAdmin, logout } = useAuth()
           <span class="hidden font-bold sm:inline-block text-lg tracking-tight">Lib<span class="text-primary">Node</span></span>
         </NuxtLink>
         <nav class="flex items-center space-x-6 text-sm font-medium">
-          <NuxtLink to="/" class="transition-colors hover:text-foreground/80 text-foreground/60">Каталог</NuxtLink>
+          <NuxtLink to="/" class="transition-colors hover:text-foreground/80 text-foreground/60">Главная</NuxtLink>
+          <NuxtLink to="/catalog" class="transition-colors hover:text-foreground/80 text-foreground/60">Каталог</NuxtLink>
         </nav>
       </div>
 
-      <!-- Mobile fallback generic logo -->
-      <NuxtLink to="/" class="mr-auto flex items-center space-x-2 md:hidden">
-        <Library class="h-6 w-6 text-primary" />
-        <span class="font-bold text-lg tracking-tight">Lib<span class="text-primary">Node</span></span>
-      </NuxtLink>
+      <!-- Mobile logo + nav -->
+      <div class="mr-auto flex items-center space-x-4 md:hidden">
+        <NuxtLink to="/" class="flex items-center space-x-2">
+          <Library class="h-6 w-6 text-primary" />
+          <span class="font-bold text-lg tracking-tight">Lib<span class="text-primary">Node</span></span>
+        </NuxtLink>
+        <nav class="flex items-center space-x-3 text-sm font-medium">
+          <NuxtLink to="/" class="transition-colors hover:text-foreground/80 text-foreground/60">Главная</NuxtLink>
+          <NuxtLink to="/catalog" class="transition-colors hover:text-foreground/80 text-foreground/60">Каталог</NuxtLink>
+        </nav>
+      </div>
 
       <div class="flex flex-1 items-center justify-end space-x-4">
         <nav class="flex items-center space-x-2">
@@ -55,3 +62,4 @@ const { user, isAuthenticated, isAdmin, logout } = useAuth()
     </div>
   </header>
 </template>
+

@@ -61,6 +61,28 @@ export interface BookDto {
 
 export interface BookDetailDto extends BookDto {}
 
+export interface BookCatalogFilters {
+  search: string
+  types: BookType[]
+  originalStatuses: OriginalStatus[]
+  translationStatuses: TranslationStatus[]
+  tags: string[]
+  categories: string[]
+  sortBy: CatalogSortBy
+  sortDirection: SortDirection
+}
+
+export enum CatalogSortBy {
+  CreatedAt = 'createdAt',
+  UpdatedAt = 'updatedAt',
+  Title = 'title',
+}
+
+export enum SortDirection {
+  Asc = 'asc',
+  Desc = 'desc',
+}
+
 export interface ChapterListDto {
   id: string
   bookId: string
