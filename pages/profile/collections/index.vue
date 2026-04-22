@@ -73,10 +73,11 @@ function formatDate(dateString: string): string {
       <p class="mb-4 mt-2 max-w-sm text-sm text-muted-foreground">
         У вас пока нет сохранённых закладок. Перейдите на страницу любой книги и сохраните её.
       </p>
-      <NuxtLink to="/">
-        <button class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-          Перейти в каталог
-        </button>
+      <NuxtLink
+        to="/"
+        class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+      >
+        Перейти в каталог
       </NuxtLink>
     </div>
   </div>

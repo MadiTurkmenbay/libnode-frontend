@@ -3,6 +3,7 @@ import type { Ref } from 'vue'
 import type { LocationQueryRaw } from 'vue-router'
 import { Loader2, Library, RefreshCw, Search, SlidersHorizontal, X, ChevronDown, ArrowUpDown } from 'lucide-vue-next'
 import { useDebounceFn, useIntersectionObserver } from '@vueuse/core'
+import BookGrid from '~/components/books/BookGrid.vue'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
@@ -550,15 +551,10 @@ const filterSections = computed(() => {
 <template>
   <div class="min-h-screen bg-background">
     <main class="container px-3 py-4 md:px-8 md:py-8">
-      <!-- Заголовок + Поиск + Сортировка -->
       <section class="mb-6 space-y-4 md:mb-8">
         <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <div class="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-primary">
-              <SlidersHorizontal class="h-3.5 w-3.5" />
-              Каталог
-            </div>
-            <h1 class="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Каталог произведений</h1>
+            <h1 class="text-3xl font-bold tracking-tight md:text-4xl">Каталог произведений</h1>
             <p class="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
               Ищите по названию и описанию, отбирайте тайтлы по типу, статусам, тегам и категориям.
             </p>
@@ -580,7 +576,6 @@ const filterSections = computed(() => {
           </div>
         </div>
 
-        <!-- Поиск и сортировка -->
         <div class="rounded-3xl border bg-card/70 p-4 shadow-sm backdrop-blur md:p-5">
           <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div class="relative flex-1">
@@ -592,7 +587,6 @@ const filterSections = computed(() => {
               />
             </div>
 
-            <!-- Сортировка -->
             <Popover v-model:open="sortDropdownOpen">
               <PopoverTrigger as-child>
                 <Button
@@ -622,7 +616,6 @@ const filterSections = computed(() => {
               </PopoverContent>
             </Popover>
 
-            <!-- Мобильная кнопка фильтров -->
             <Button
               variant="outline"
               class="h-11 rounded-2xl lg:hidden"
@@ -647,7 +640,6 @@ const filterSections = computed(() => {
           </div>
         </div>
 
-        <!-- Активные чипсы -->
         <div v-if="activeFilterChips.length" class="flex flex-wrap gap-2">
           <button
             v-for="chip in activeFilterChips"
@@ -662,7 +654,6 @@ const filterSections = computed(() => {
         </div>
       </section>
 
-      <!-- Мобильный sidebar (раскрывается над контентом) -->
       <div
         v-if="mobileFiltersOpen"
         class="mb-6 space-y-4 lg:hidden"
@@ -692,9 +683,7 @@ const filterSections = computed(() => {
         </div>
       </div>
 
-      <!-- Layout: Sidebar + Content -->
       <div class="flex gap-6">
-        <!-- Sidebar Фильтры (десктоп) -->
         <aside class="hidden w-64 shrink-0 lg:block">
           <div class="sticky top-20 space-y-5">
             <div
@@ -724,14 +713,11 @@ const filterSections = computed(() => {
         </aside>
 
 
-        <!-- Content -->
         <div class="min-w-0 flex-1">
-          <!-- Загрузка -->
           <div v-if="pending && books.length === 0" class="flex items-center justify-center py-32">
             <RefreshCw class="h-8 w-8 animate-spin text-primary" />
           </div>
 
-          <!-- Ошибка -->
           <div
             v-else-if="error"
             class="mx-auto max-w-md rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center"
@@ -746,18 +732,8 @@ const filterSections = computed(() => {
             </Button>
           </div>
 
-          <!-- Список книг -->
           <div v-else-if="books.length > 0">
-            <div class="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              <div
-                v-for="(book, index) in books"
-                :key="book.id"
-                class="animate-fade-in"
-                :style="{ animationDelay: `${Math.min(index, 19) * 50}ms` }"
-              >
-                <BookCard :book="book" :show-description="false" />
-              </div>
-            </div>
+            <BookGrid :books="books" compact />
 
             <div
               ref="loadTrigger"
@@ -773,7 +749,6 @@ const filterSections = computed(() => {
             </div>
           </div>
 
-          <!-- Пусто -->
           <div
             v-else
             class="flex flex-col items-center justify-center rounded-3xl border border-dashed py-24 text-center"

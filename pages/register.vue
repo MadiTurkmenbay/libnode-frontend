@@ -56,8 +56,8 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="container relative flex h-screen w-full flex-col items-center justify-center -mt-14 mx-auto px-4">
-    <Card class="w-full max-w-[400px]">
+  <div class="container mx-auto flex min-h-[calc(100vh-3.5rem)] w-full items-center justify-center px-4 py-8">
+    <Card class="w-full max-w-[400px] border-border/80 shadow-lg shadow-black/10">
       <CardHeader class="space-y-1 text-center">
         <CardTitle class="text-2xl">Регистрация</CardTitle>
         <CardDescription>Создайте новый аккаунт в LibNode</CardDescription>

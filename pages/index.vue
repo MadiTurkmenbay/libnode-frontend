@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Loader2, Library, RefreshCw, Sparkles } from 'lucide-vue-next'
+import { Loader2, Library, RefreshCw } from 'lucide-vue-next'
 import { useIntersectionObserver } from '@vueuse/core'
+import BookGrid from '~/components/books/BookGrid.vue'
 import type {
   BookDto,
   CursorPagedResult,
@@ -27,6 +28,7 @@ const { data: pageData, pending, error, execute: fetchCatalog } = await useApiFe
   () => catalogUrl.value,
   {
     immediate: false,
+    key: 'home:catalog',
     watch: false,
   },
 )
@@ -41,6 +43,11 @@ function applyPageData(page: CursorPagedResult<BookDto> | null) {
 
 async function loadFirstPage() {
   const requestId = ++latestRequest
+
+  if (pageData.value && books.value.length === 0 && !nextCursor.value && !hasMore.value) {
+    applyPageData(pageData.value)
+    return
+  }
 
   books.value = []
   nextCursor.value = null
@@ -103,15 +110,10 @@ useIntersectionObserver(
 <template>
   <div class="min-h-screen bg-background">
     <main class="container px-3 py-4 md:px-8 md:py-8">
-      <!-- Заголовок -->
       <section class="mb-6 md:mb-8">
         <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <div class="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-primary">
-              <Sparkles class="h-3.5 w-3.5" />
-              Главная
-            </div>
-            <h1 class="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Добро пожаловать</h1>
+            <h1 class="text-3xl font-bold tracking-tight md:text-4xl">Новые книги</h1>
             <p class="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
               Новые поступления и последние обновления каталога.
             </p>
@@ -131,12 +133,10 @@ useIntersectionObserver(
         </div>
       </section>
 
-      <!-- Загрузка -->
       <div v-if="pending && books.length === 0" class="flex items-center justify-center py-32">
         <RefreshCw class="h-8 w-8 animate-spin text-primary" />
       </div>
 
-      <!-- Ошибка -->
       <div
         v-else-if="error"
         class="mx-auto max-w-md rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center"
@@ -151,18 +151,8 @@ useIntersectionObserver(
         </Button>
       </div>
 
-      <!-- Список книг -->
       <div v-else-if="books.length > 0">
-        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          <div
-            v-for="(book, index) in books"
-            :key="book.id"
-            class="animate-fade-in"
-            :style="{ animationDelay: `${Math.min(index, 19) * 50}ms` }"
-          >
-            <BookCard :book="book" :show-description="false" />
-          </div>
-        </div>
+        <BookGrid :books="books" compact />
 
         <div
           ref="loadTrigger"
@@ -178,7 +168,6 @@ useIntersectionObserver(
         </div>
       </div>
 
-      <!-- Пусто -->
       <div
         v-else
         class="flex flex-col items-center justify-center rounded-3xl border border-dashed py-24 text-center"

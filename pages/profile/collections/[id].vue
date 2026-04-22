@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, Loader2, BookOpen } from 'lucide-vue-next'
 import type { CollectionDetailDto } from '~/types'
-// Assuming BookCard.vue is at ~/components/BookCard.vue
 import BookCard from '~/components/BookCard.vue'
 
 definePageMeta({
@@ -47,7 +46,6 @@ function formatDate(dateString: string): string {
       </p>
     </div>
 
-    <!-- Загрузка / Ошибка -->
     <div v-if="pending" class="py-20 text-center text-muted-foreground">
       <Loader2 class="h-8 w-8 animate-spin mx-auto" />
     </div>
@@ -55,7 +53,6 @@ function formatDate(dateString: string): string {
       Папка с закладками не найдена или у вас нет к ней доступа.
     </div>
 
-    <!-- Контент: Сетка книг -->
     <div v-else>
       <div v-if="collection.books && collection.books.length > 0" class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-y-8">
         <BookCard 
@@ -71,10 +68,11 @@ function formatDate(dateString: string): string {
         <p class="mb-4 mt-2 text-sm text-muted-foreground max-w-sm">
           Вы еще не добавили ни одной книги в эту закладку.
         </p>
-        <NuxtLink to="/">
-          <button class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-            Перейти в каталог
-          </button>
+        <NuxtLink
+          to="/"
+          class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Перейти в каталог
         </NuxtLink>
       </div>
     </div>

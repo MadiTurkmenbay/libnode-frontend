@@ -258,7 +258,6 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
               <BookOpen class="h-20 w-20 text-muted-foreground/40" />
             </div>
 
-            <!-- Бейдж типа (страна) поверх обложки -->
             <Badge
               class="absolute top-2 left-2 shadow-sm"
               variant="secondary"
@@ -283,7 +282,6 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
               </span>
             </div>
 
-            <!-- Статусы и тип -->
             <div class="mt-3 flex flex-wrap gap-2">
               <Badge variant="outline">
                 Тип: {{ bookTypeLabels[book.type] }}
@@ -296,7 +294,6 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
               </Badge>
             </div>
 
-            <!-- Теги -->
             <div v-if="book.tags.length" class="mt-3 flex flex-wrap gap-2">
               <Badge
                 v-for="tag in book.tags"
@@ -308,7 +305,6 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
               </Badge>
             </div>
 
-            <!-- Категории -->
             <div v-if="book.categories.length" class="mt-2 flex flex-wrap gap-2">
               <Badge
                 v-for="category in book.categories"

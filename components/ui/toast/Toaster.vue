@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Toaster as Sonner } from 'vue-sonner'
-import 'vue-sonner/style.css' // Import styles
 </script>
 
 <template>

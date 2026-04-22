@@ -28,7 +28,6 @@ const {
 
     <PopoverContent :side-offset="8" align="end" class="w-72 p-0">
       <div class="p-4 space-y-5">
-        <!-- Заголовок -->
         <div class="flex items-center justify-between">
           <h4 class="text-sm font-semibold">Настройки чтения</h4>
           <button
@@ -40,7 +39,6 @@ const {
           </button>
         </div>
 
-        <!-- Размер шрифта -->
         <div class="space-y-2">
           <label class="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Размер шрифта
@@ -64,7 +62,6 @@ const {
           </div>
         </div>
 
-        <!-- Межстрочный интервал -->
         <div class="space-y-2">
           <label class="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Межстрочный интервал
@@ -88,7 +85,6 @@ const {
           </div>
         </div>
 
-        <!-- Шрифт -->
         <div class="space-y-2">
           <label class="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Шрифт
@@ -113,7 +109,6 @@ const {
           </div>
         </div>
 
-        <!-- Тема -->
         <div class="space-y-2">
           <label class="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Тема

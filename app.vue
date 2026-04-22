@@ -1,9 +1,9 @@
 <template>
   <div class="relative flex min-h-screen flex-col bg-background">
     <SiteHeader />
-    <main class="flex-1">
+    <div class="flex-1">
       <NuxtPage />
-    </main>
+    </div>
     <Toaster />
   </div>
 </template>
