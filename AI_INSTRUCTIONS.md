@@ -1,7 +1,16 @@
 # AI_INSTRUCTIONS — libnode frontend
 
 ## Контекст
-Этот репозиторий — Nuxt 3 frontend LibNode. В текущем workspace он физически расположен в папке `libnode-fronted`. Архитектура построена вокруг SSR, cookie-based auth, единого API-слоя, Pinia для глобального доменного состояния и UI-примитивов `shadcn-nuxt`/`reka-ui`/`radix-vue`.
+Этот репозиторий — Nuxt 3 frontend LibNode. В текущем workspace он физически расположен в папке `libnode-frontend`. Архитектура построена вокруг SSR, cookie-based auth, единого API-слоя, Pinia для глобального доменного состояния и UI-примитивов `shadcn-nuxt`/`reka-ui`/`radix-vue`.
+
+## Workspace Guardrails
+
+- Read `/home/qustust/projects/libnodeProject/AGENTS.md` before this file.
+- The frontend repo path is `/home/qustust/projects/libnodeProject/libnode-frontend`; never create or use a misspelled duplicate frontend path.
+- Before editing or committing on user request, run `git status --short`, `git diff`, and `git diff --staged` from `libnode-frontend/`.
+- Use Docker-first acceptance through `../libnode-deployer/` for cross-service verification. Frontend host commands are iteration aids only.
+- Do not read, print, or commit real `.env*`, `.nuxt/`, `.output/`, `node_modules/`, Playwright auth state, browser profiles, test results, coverage, or logs.
+- Do not change auth cookie behavior, route guards, catalog cursor behavior, reader navigation, or DTO contracts as part of Phase 1 workspace guidance.
 
 ## Базовая архитектура
 
