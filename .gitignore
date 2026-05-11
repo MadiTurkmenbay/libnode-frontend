@@ -1,10 +1,18 @@
-// .gitignore for Nuxt
-node_modules
-*.log*
-.nuxt
-.nitro
-.cache
-.output
+# .gitignore for Nuxt
 .env
-dist
+.env.*
+!.env.example
+node_modules/
+*.log
+*.log*
+.nuxt/
+.nitro/
+.cache/
+.output/
+dist/
+coverage/
+playwright-report/
+test-results/
+playwright/.auth/
+playwright/.profiles/
 .DS_Store
