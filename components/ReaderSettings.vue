@@ -8,6 +8,9 @@ import {
   Moon,
   Type,
   BookOpen,
+  PanelLeft,
+  PanelRight,
+  PanelRightOpen,
 } from 'lucide-vue-next'
 import { Popover, PopoverTrigger, PopoverContent } from '~/components/ui/popover'
 import { useReaderSettings } from '~/composables/useReaderSettings'
@@ -19,6 +22,7 @@ const {
   setLineHeight,
   setTheme,
   setFontFamily,
+  setContainerWidth,
   resetDefaults,
 } = useReaderSettings()
 
@@ -33,6 +37,12 @@ const themePresets = [
   { key: 'light', label: 'Светлая', icon: Sun },
   { key: 'dark', label: 'Тёмная', icon: Moon },
   { key: 'sepia', label: 'Сепия', icon: BookOpen },
+] as const
+
+const containerWidthPresets = [
+  { value: 'narrow', label: 'Узкая', icon: PanelLeft },
+  { value: 'medium', label: 'Средняя', icon: PanelRight },
+  { value: 'wide', label: 'Широкая', icon: PanelRightOpen },
 ] as const
 </script>
 
@@ -156,6 +166,28 @@ const themePresets = [
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'bg-background hover:bg-accent text-muted-foreground hover:text-foreground'"
               @click="setTheme(preset.key)"
+            >
+              <component :is="preset.icon" class="h-4 w-4" />
+              {{ preset.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Container width -->
+        <div class="space-y-3">
+          <label class="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Ширина контейнера
+          </label>
+          <div class="grid grid-cols-3 gap-2">
+            <button
+              v-for="preset in containerWidthPresets"
+              :key="preset.value"
+              type="button"
+              class="flex flex-col items-center gap-1 rounded-md border px-2 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              :class="settings.containerWidth === preset.value
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background hover:bg-accent text-muted-foreground hover:text-foreground'"
+              @click="setContainerWidth(preset.value)"
             >
               <component :is="preset.icon" class="h-4 w-4" />
               {{ preset.label }}

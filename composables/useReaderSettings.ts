@@ -5,6 +5,7 @@ export interface ReaderSettingsState {
   theme: 'dark' | 'light' | 'sepia'
   fontFamily: 'sans' | 'serif'
   lineHeight: number
+  containerWidth: 'narrow' | 'medium' | 'wide'
 }
 
 export const DEFAULT_READER_SETTINGS: ReaderSettingsState = {
@@ -12,6 +13,7 @@ export const DEFAULT_READER_SETTINGS: ReaderSettingsState = {
   theme: 'dark',
   fontFamily: 'sans',
   lineHeight: 1.6,
+  containerWidth: 'medium',
 }
 
 export const READER_SETTINGS_STORAGE_KEY = 'libnode-reader-settings'
@@ -26,7 +28,11 @@ export const READER_SETTINGS_STORAGE_KEY = 'libnode-reader-settings'
  * это предотвращает hydration mismatch для theme/fontSize.
  */
 export function useReaderSettings() {
-  const settings = useLocalStorage<ReaderSettingsState>(READER_SETTINGS_STORAGE_KEY, { ...DEFAULT_READER_SETTINGS })
+  const settings = useLocalStorage<ReaderSettingsState>(
+    READER_SETTINGS_STORAGE_KEY,
+    { ...DEFAULT_READER_SETTINGS },
+    { mergeDefaults: true },
+  )
   const isReady = ref(false)
 
   onMounted(() => {
@@ -65,6 +71,10 @@ export function useReaderSettings() {
     settings.value.fontFamily = font
   }
 
+  function setContainerWidth(width: ReaderSettingsState['containerWidth']) {
+    settings.value.containerWidth = width
+  }
+
   function resetDefaults() {
     settings.value = { ...DEFAULT_READER_SETTINGS }
   }
@@ -79,6 +89,7 @@ export function useReaderSettings() {
     setLineHeight,
     setTheme,
     setFontFamily,
+    setContainerWidth,
     resetDefaults,
   }
 }

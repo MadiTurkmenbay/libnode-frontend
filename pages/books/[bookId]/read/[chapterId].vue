@@ -17,6 +17,7 @@ const activeTheme = computed(() => isReady.value ? settings.value.theme : 'dark'
 const activeFontSize = computed(() => isReady.value ? settings.value.fontSize : 18)
 const activeLineHeight = computed(() => isReady.value ? settings.value.lineHeight : 1.6)
 const activeFontFamily = computed(() => isReady.value ? settings.value.fontFamily : 'sans')
+const activeContainerWidth = computed(() => isReady.value ? settings.value.containerWidth : 'medium')
 
 const { data: chapter, pending: chapterPending, error: chapterError } = await useApiFetch<ChapterDetailDto>(
   () => `/api/chapters/${currentChapterId.value}`,
@@ -34,6 +35,18 @@ const readerClasses = computed(() => {
   const classes: string[] = []
   classes.push(activeFontFamily.value === 'serif' ? 'font-serif' : 'font-sans')
   return classes.join(' ')
+})
+
+const containerWidthClass = computed(() => {
+  switch (activeContainerWidth.value) {
+    case 'narrow':
+      return 'max-w-2xl'
+    case 'wide':
+      return 'max-w-5xl'
+    case 'medium':
+    default:
+      return 'max-w-3xl'
+  }
 })
 
 const themeClasses = computed(() => {
@@ -154,7 +167,7 @@ async function likeChapter() {
       </div>
     </header>
 
-    <main class="flex-1 container px-3 md:px-8 max-w-3xl py-6 md:py-12">
+    <main class="flex-1 container px-3 md:px-8 py-6 md:py-12" :class="containerWidthClass">
       <div v-if="chapterPending" class="flex flex-col space-y-4 animate-pulse">
         <div class="h-8 w-2/3 rounded-lg bg-muted"></div>
         <div class="h-4 w-full rounded bg-muted mt-8"></div>
@@ -186,7 +199,7 @@ async function likeChapter() {
           :style="readerStyle"
         >
           <template v-for="(paragraph, index) in chapter.content.split('\n')" :key="index">
-            <p v-if="paragraph.trim()" class="indent-6 mb-4 text-justify leading-relaxed">
+            <p v-if="paragraph.trim()" class="indent-6 mb-4 text-justify">
               {{ paragraph }}
             </p>
             <div v-else-if="paragraph === ''" class="h-4"></div>
