@@ -113,6 +113,7 @@
 
 - [MANDATORY] Фронтенд-юнит-тесты запускаются через `npm run test` (Vitest + happy-dom). Предпочтительно тестировать чистые функции и composable-логику, не завязанную на Nuxt runtime.
 - [MANDATORY] Тесты курсорной пагинации и reader-навигации должны покрывать формирование URL, сброс курсора при смене фильтров и обработку `previousChapterId`/`nextChapterId`.
+- [MANDATORY] Каталоговая загрузка и состояние курсора инкапсулированы в `composables/useCatalogCursor.ts`; страница `pages/catalog.vue` использует этот composable и не дублирует логику URL/cursor/пагинации.
 - [FORBIDDEN] Добавлять новые тестовые зависимости без явной необходимости; использовать уже выбранный стек (Vitest, @vue/test-utils, happy-dom).
 
 ## Обновление документации
