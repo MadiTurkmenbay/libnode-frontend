@@ -2,7 +2,7 @@
 import { useAuth } from '~/composables/useAuth'
 import { Button } from '@/components/ui/button'
 import { AuthModal } from '@/components/auth'
-import { Library } from 'lucide-vue-next'
+import { Library, Quote } from 'lucide-vue-next'
 
 const { user, isAuthenticated, isAdmin, logout } = useAuth()
 const { toast } = useToast()
@@ -68,6 +68,12 @@ function handleLogout() {
             </div>
             <Button as-child variant="ghost" class="h-8 px-4 text-primary">
               <NuxtLink to="/profile/collections">Мои закладки</NuxtLink>
+            </Button>
+            <Button as-child variant="ghost" class="h-8 px-4 text-primary">
+              <NuxtLink to="/profile/quotes" class="inline-flex items-center gap-1.5">
+                <Quote class="h-4 w-4" />
+                <span>Цитаты</span>
+              </NuxtLink>
             </Button>
             <Button v-if="isAdmin" as-child variant="outline" class="h-8 px-4">
               <NuxtLink to="/admin">Админка</NuxtLink>

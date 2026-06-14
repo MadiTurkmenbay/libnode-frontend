@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ArrowLeft, ChevronLeft, ChevronRight, Menu, Heart } from 'lucide-vue-next'
+import { ArrowLeft, ChevronLeft, ChevronRight, Menu, Heart, Quote, X } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import type { ChapterDetailDto, SetProgressDto } from '~/types'
+import type { ChapterDetailDto, CreateQuoteDto, SetProgressDto } from '~/types'
 import { useReaderSettings } from '~/composables/useReaderSettings'
+import { useQuotes } from '~/composables/useQuotes'
 
 const route = useRoute()
 const currentBookId = computed(() => route.params.bookId as string)
@@ -117,7 +118,91 @@ watch(
   },
 )
 
+const { createQuote } = useQuotes()
 const isLiking = ref(false)
+
+const showQuotePopup = ref(false)
+const popupPosition = ref({ x: 0, y: 0 })
+const selectedText = ref('')
+const contextText = ref('')
+const isSavingQuote = ref(false)
+
+function clearSelection() {
+  showQuotePopup.value = false
+  selectedText.value = ''
+  contextText.value = ''
+  if (import.meta.client && window.getSelection) {
+    window.getSelection()?.removeAllRanges()
+  }
+}
+
+function handleMouseUp(event: MouseEvent) {
+  if (!import.meta.client || !isAuthenticated.value) {
+    return
+  }
+
+  const selection = window.getSelection()
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+    showQuotePopup.value = false
+    return
+  }
+
+  const range = selection.getRangeAt(0)
+  const container = range.commonAncestorContainer as Node
+  const readerContent = document.querySelector('.reader-content')
+  if (!readerContent || !readerContent.contains(container)) {
+    showQuotePopup.value = false
+    return
+  }
+
+  const text = selection.toString().trim()
+  if (!text || text.length < 3) {
+    showQuotePopup.value = false
+    return
+  }
+
+  selectedText.value = text
+
+  const paragraph = container.nodeType === Node.TEXT_NODE
+    ? container.parentElement?.closest('p')
+    : (container as Element).closest('p')
+  contextText.value = paragraph?.textContent?.trim() ?? ''
+
+  const rect = range.getBoundingClientRect()
+  popupPosition.value = {
+    x: rect.left + rect.width / 2,
+    y: rect.top + window.scrollY - 48,
+  }
+
+  showQuotePopup.value = true
+}
+
+async function saveQuote() {
+  if (!chapter.value || !selectedText.value || isSavingQuote.value) {
+    return
+  }
+
+  isSavingQuote.value = true
+  try {
+    const payload: CreateQuoteDto = {
+      chapterId: currentChapterId.value,
+      selectedText: selectedText.value,
+      contextText: contextText.value || null,
+      note: null,
+    }
+    await createQuote(payload)
+    toast('Цитата сохранена')
+    clearSelection()
+  }
+  catch (err) {
+    console.error('Failed to save quote:', err)
+    const message = err?.statusMessage || err?.message || 'Не удалось сохранить цитату'
+    toast({ variant: 'destructive', title: message })
+  }
+  finally {
+    isSavingQuote.value = false
+  }
+}
 
 async function likeChapter() {
   if (!chapter.value || !isAuthenticated.value || chapter.value.isLikedByCurrentUser) {
@@ -197,6 +282,7 @@ async function likeChapter() {
           class="reader-content"
           :class="readerClasses"
           :style="readerStyle"
+          @mouseup="handleMouseUp"
         >
           <template v-for="(paragraph, index) in chapter.content.split('\n')" :key="index">
             <p v-if="paragraph.trim()" class="indent-6 mb-4 text-justify">
@@ -204,6 +290,35 @@ async function likeChapter() {
             </p>
             <div v-else-if="paragraph === ''" class="h-4"></div>
           </template>
+        </div>
+
+        <div
+          v-if="showQuotePopup"
+          class="fixed z-[60] flex items-center gap-1 rounded-lg border bg-background/95 px-2 py-1.5 shadow-lg backdrop-blur"
+          :style="{
+            left: `${popupPosition.x}px`,
+            top: `${popupPosition.y}px`,
+            transform: 'translateX(-50%)',
+          }"
+        >
+          <Button
+            size="sm"
+            variant="ghost"
+            class="h-8 gap-1.5 px-2 text-xs"
+            :disabled="isSavingQuote"
+            @click="saveQuote"
+          >
+            <Quote class="h-3.5 w-3.5" />
+            <span>Сохранить цитату</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            class="h-8 w-8 p-0"
+            @click="clearSelection"
+          >
+            <X class="h-3.5 w-3.5" />
+          </Button>
         </div>
 
         <div class="mt-16 flex flex-col items-center justify-center border-t border-border/50 pt-10 pb-12 transition-colors" :class="headerFooterTheme">

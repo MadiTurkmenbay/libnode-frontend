@@ -101,6 +101,14 @@
 - [FORBIDDEN] Загружать `limit=1000` или иной большой список глав в читалке только ради кнопок "Предыдущая"/"Следующая".
 - [MANDATORY] Навигация по главам строится на одном запросе `/api/chapters/{id}` с последующим переходом по `previousChapterId`/`nextChapterId`.
 
+## Quotes / User Highlights
+
+- [CRITICAL] User quotes are managed through `composables/useQuotes.ts` and consumed by the reader page (`pages/books/[bookId]/read/[chapterId].vue`) and the profile page (`pages/profile/quotes/index.vue`).
+- [MANDATORY] `types/index.ts` mirrors backend `QuoteDto`, `CreateQuoteDto`, and `UpdateQuoteDto` exactly.
+- [MANDATORY] Text selection in the reader is client-only and must be guarded with `import.meta.client` or equivalent browser checks; never run `window.getSelection()` during SSR.
+- [MANDATORY] Quote popup is positioned relative to the selection range and is only shown when the user is authenticated and the selection is inside `.reader-content`.
+- [MANDATORY] Profile quotes page is protected by the `auth` middleware and groups quotes by book.
+
 ## Что нельзя ломать
 
 - [FORBIDDEN] Удалять или обходить `useApiFetch` как единый API-слой.

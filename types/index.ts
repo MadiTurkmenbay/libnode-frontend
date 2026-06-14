@@ -171,6 +171,31 @@ export interface BookCollectionStatusDto {
   collectionName: string
 }
 
+export interface QuoteDto {
+  id: string
+  chapterId: string
+  bookId: string
+  bookTitle: string
+  chapterTitle: string
+  chapterNumber: number
+  selectedText: string
+  contextText: string | null
+  note: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateQuoteDto {
+  chapterId: string
+  selectedText: string
+  contextText?: string | null
+  note?: string | null
+}
+
+export interface UpdateQuoteDto {
+  note?: string | null
+}
+
 // ── Типы авторизации ──────────────────────────────────
 
 export interface UserDto {
