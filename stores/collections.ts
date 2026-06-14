@@ -81,11 +81,7 @@ export const useCollectionsStore = defineStore('collections', () => {
         body: { bookId },
       })
 
-      const target = collections.value.find(collection => collection.id === collectionId)
-
-      if (target) {
-        target.bookCount += 1
-      }
+      await fetchCollections(true)
     }
     finally {
       isUpdating.value = false
@@ -100,11 +96,7 @@ export const useCollectionsStore = defineStore('collections', () => {
         method: 'DELETE',
       })
 
-      const target = collections.value.find(collection => collection.id === collectionId)
-
-      if (target && target.bookCount > 0) {
-        target.bookCount -= 1
-      }
+      await fetchCollections(true)
     }
     finally {
       isUpdating.value = false
