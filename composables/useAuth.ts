@@ -2,8 +2,11 @@ import type { UserDto, AuthResponse, CreateUserDto, LoginDto } from '~/types'
 
 /**
  * Composable для управления аутентификацией.
- * 
- * Хранит JWT в httpOnly-безопасной cookie (SSR-совместимо).
+ *
+ * Хранит JWT в cookie auth_token (SSR-совместимо).
+ * Cookie не является HttpOnly — создаётся клиентским кодом через Nuxt useCookie.
+ * Верификация токена всегда происходит на backend при каждом API-запросе.
+ *
  * Предоставляет реактивное состояние пользователя, методы login/register/logout,
  * а также вычисляемые свойства isAuthenticated и isAdmin.
  */
@@ -12,6 +15,12 @@ export function useAuth() {
     maxAge: 60 * 60 * 24, // 24 часа
     path: '/',
     sameSite: 'lax',
+    // Secure: только на HTTPS-соединениях.
+    // На localhost HTTP dev (Docker Compose): браузер видит HTTP, Secure остаётся false.
+    // В production за TLS proxy: браузер видит HTTPS, Secure устанавливается.
+    secure: typeof window !== 'undefined'
+      ? window.location.protocol === 'https:'
+      : false,
   })
 
   const user = useState<UserDto | null>('auth_user', () => null)
@@ -22,11 +31,20 @@ export function useAuth() {
     try {
       const payload = parseJwtPayload(token.value)
       if (payload) {
-        user.value = {
-          id: payload.sub,
-          username: payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ?? '',
-          email: payload.email ?? '',
-          role: payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? 'User',
+        // Check token expiry — clear if expired and treat as unauthenticated.
+        // exp claim is Unix timestamp in seconds.
+        const isExpired = typeof payload.exp === 'number'
+          && payload.exp < Math.floor(Date.now() / 1000);
+
+        if (isExpired) {
+          token.value = null;
+        } else {
+          user.value = {
+            id: payload.sub,
+            username: payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ?? '',
+            email: payload.email ?? '',
+            role: payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? 'User',
+          }
         }
       }
     } catch {

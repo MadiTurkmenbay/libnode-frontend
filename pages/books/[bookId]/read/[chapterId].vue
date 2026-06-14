@@ -27,7 +27,7 @@ const currentIndex = computed(() => {
     return -1
   }
 
-  return chapters.value.findIndex(item => item.id === chapter.value.id)
+  return chapters.value.findIndex(item => item.id === chapter.value?.id)
 })
 
 const prevChapter = computed(() => {

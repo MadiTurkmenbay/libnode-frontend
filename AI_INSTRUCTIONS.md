@@ -57,6 +57,15 @@
 - [MANDATORY] Всё, что должно корректно переживать SSR, обязано быть cookie/state-safe. Любой код, завязанный на browser-only API, должен быть осознанно изолирован.
 - [MANDATORY] Узкое исключение для `localStorage` допустимо только для чисто клиентских необязательных preferences без security и SSR-критичности, как `useReaderSettings`. Это исключение нельзя расширять на auth, кэш API, роли, bookmarks, профили и другую доменную модель.
 
+### Auth Cookie Flags and JWT UX
+
+- [CRITICAL] The `auth_token` cookie is created client-side via Nuxt `useCookie` and is therefore **not** HttpOnly. Do not claim or document it as HttpOnly.
+- [CRITICAL] `auth_token` must use `sameSite: 'lax'` and `path: '/'` to limit cross-origin exposure and ensure the cookie is sent on all app routes.
+- [CRITICAL] The `secure` flag must be conditional on the browser seeing HTTPS (`window.location.protocol === 'https:'`). On localhost HTTP development, `secure` must be `false` so auth does not break.
+- [MANDATORY] `useAuth` and `middleware/auth.ts` may parse the JWT payload only for UX (display, expiry check, redirect). Backend remains the authorization authority on every API call.
+- [MANDATORY] Expired or malformed `auth_token` cookies must be cleared and the user must be redirected to `/login` to avoid showing a broken authenticated UI.
+- [MANDATORY] `logout()` must clear the cookie with the same `path: '/'` used at login so the token is fully removed.
+
 ## Компоненты и UI
 
 ### Никаких God Components

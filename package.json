@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^6.12.2",
+    "@types/node": "^25.9.3",
     "shadcn-nuxt": "^0.10.4",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.7.0"
