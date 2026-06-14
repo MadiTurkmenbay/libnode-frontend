@@ -1,27 +1,15 @@
 <script setup lang="ts">
-import type { Ref } from 'vue'
-import type { LocationQueryRaw } from 'vue-router'
 import { Loader2, Library, RefreshCw, Search, SlidersHorizontal, X, ChevronDown, ArrowUpDown } from 'lucide-vue-next'
-import { useDebounceFn, useIntersectionObserver } from '@vueuse/core'
+import { useIntersectionObserver } from '@vueuse/core'
 import BookGrid from '~/components/books/BookGrid.vue'
+import AppState from '~/components/AppState.vue'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Popover, PopoverTrigger, PopoverContent } from '~/components/ui/popover'
-import { bookTypeLabels, originalStatusLabels, translationStatusLabels, catalogSortOptions } from '~/lib/enums'
-import type { SortOption } from '~/lib/enums'
-import {
-  BookType,
-  CatalogSortBy,
-  OriginalStatus,
-  SortDirection,
-  TranslationStatus,
-  type BookCatalogFilters,
-  type BookDto,
-  type CategoryDto,
-  type TagDto,
-} from '~/types'
+import { useCatalogFilters } from '~/composables/useCatalogFilters'
 import { useCatalogCursor } from '~/composables/useCatalogCursor'
+import type { CategoryDto, TagDto } from '~/types'
 
 useHead({
   title: 'LibNode — Каталог',
@@ -30,222 +18,27 @@ useHead({
   ],
 })
 
-const bookTypeOptions = [
-  BookType.Japan,
-  BookType.Korea,
-  BookType.China,
-  BookType.English,
-  BookType.Original,
-  BookType.Fanfic,
-] as const
-const originalStatusOptions = [
-  OriginalStatus.None,
-  OriginalStatus.Ongoing,
-  OriginalStatus.Completed,
-  OriginalStatus.Hiatus,
-] as const
-const translationStatusOptions = [
-  TranslationStatus.None,
-  TranslationStatus.Ongoing,
-  TranslationStatus.Completed,
-  TranslationStatus.Dropped,
-  TranslationStatus.Hiatus,
-] as const
-
 const route = useRoute()
-const router = useRouter()
 
 const loadTrigger = ref<HTMLElement | null>(null)
 const sortDropdownOpen = ref(false)
 const mobileFiltersOpen = ref(false)
 
-const search = ref('')
-const selectedTypes = ref<BookType[]>([])
-const selectedOriginalStatuses = ref<OriginalStatus[]>([])
-const selectedTranslationStatuses = ref<TranslationStatus[]>([])
-const selectedTags = ref<string[]>([])
-const selectedCategories = ref<string[]>([])
-const selectedSortBy = ref<CatalogSortBy>(CatalogSortBy.CreatedAt)
-const selectedSortDirection = ref<SortDirection>(SortDirection.Desc)
+const { data: availableTags } = await useApiFetch<TagDto[]>('/api/tags')
+const { data: availableCategories } = await useApiFetch<CategoryDto[]>('/api/categories')
 
-// ── Query Parsing ──────────────────────────────────────
-
-function normalizeQueryValues(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.flatMap(normalizeQueryValues)
-  }
-
-  if (value === null || value === undefined) {
-    return []
-  }
-
-  const normalized = String(value).trim()
-  return normalized ? [normalized] : []
-}
-
-function parseEnumFilter<T extends number>(value: unknown, allowedValues: readonly T[]): T[] {
-  const allowed = new Set(allowedValues.map(String))
-
-  return [...new Set(
-    normalizeQueryValues(value)
-      .filter(item => allowed.has(item))
-      .map(item => Number(item) as T),
-  )]
-}
-
-function parseStringFilter(value: unknown): string[] {
-  return [...new Set(normalizeQueryValues(value))]
-}
-
-function parseSortBy(value: unknown): CatalogSortBy {
-  const raw = normalizeQueryValues(value)[0]
-  const allowed = Object.values(CatalogSortBy) as string[]
-  return allowed.includes(raw ?? '') ? (raw as CatalogSortBy) : CatalogSortBy.CreatedAt
-}
-
-function parseSortDirection(value: unknown): SortDirection {
-  const raw = normalizeQueryValues(value)[0]
-  return raw === SortDirection.Asc ? SortDirection.Asc : SortDirection.Desc
-}
-
-function parseRouteFilters(): BookCatalogFilters {
-  return {
-    search: normalizeQueryValues(route.query.search)[0] ?? '',
-    types: parseEnumFilter(route.query.types, bookTypeOptions),
-    originalStatuses: parseEnumFilter(route.query.originalStatuses, originalStatusOptions),
-    translationStatuses: parseEnumFilter(route.query.translationStatuses, translationStatusOptions),
-    tags: parseStringFilter(route.query.tags),
-    categories: parseStringFilter(route.query.categories),
-    sortBy: parseSortBy(route.query.sortBy),
-    sortDirection: parseSortDirection(route.query.sortDirection),
-  }
-}
-
-// ── Route Query Builder ────────────────────────────────
-
-function buildRouteQuery(filters: BookCatalogFilters): LocationQueryRaw {
-  const query: LocationQueryRaw = {}
-  const trimmedSearch = filters.search.trim()
-
-  if (trimmedSearch) {
-    query.search = trimmedSearch
-  }
-
-  if (filters.types.length) {
-    query.types = [...filters.types].sort((left, right) => left - right).map(String)
-  }
-
-  if (filters.originalStatuses.length) {
-    query.originalStatuses = [...filters.originalStatuses].sort((left, right) => left - right).map(String)
-  }
-
-  if (filters.translationStatuses.length) {
-    query.translationStatuses = [...filters.translationStatuses].sort((left, right) => left - right).map(String)
-  }
-
-  if (filters.tags.length) {
-    query.tags = [...filters.tags].sort((left, right) => left.localeCompare(right))
-  }
-
-  if (filters.categories.length) {
-    query.categories = [...filters.categories].sort((left, right) => left.localeCompare(right))
-  }
-
-  if (filters.sortBy !== CatalogSortBy.CreatedAt) {
-    query.sortBy = filters.sortBy
-  }
-
-  if (filters.sortDirection !== SortDirection.Desc) {
-    query.sortDirection = filters.sortDirection
-  }
-
-  return query
-}
-
-function getQuerySignature(query: Record<string, unknown>): string {
-  return JSON.stringify(
-    Object.fromEntries(
-      Object.entries(query)
-        .map(([key, value]) => [key, normalizeQueryValues(value).sort((left, right) => left.localeCompare(right))] as const)
-        .filter(([, value]) => value.length > 0),
-    ),
-  )
-}
-
-function arraysEqual<T extends string | number>(left: T[], right: T[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index])
-}
-
-// ── UI State Sync ──────────────────────────────────────
-
-function syncUiState(filters: BookCatalogFilters) {
-  if (search.value !== filters.search) {
-    search.value = filters.search
-  }
-
-  if (!arraysEqual(selectedTypes.value, filters.types)) {
-    selectedTypes.value = [...filters.types]
-  }
-
-  if (!arraysEqual(selectedOriginalStatuses.value, filters.originalStatuses)) {
-    selectedOriginalStatuses.value = [...filters.originalStatuses]
-  }
-
-  if (!arraysEqual(selectedTranslationStatuses.value, filters.translationStatuses)) {
-    selectedTranslationStatuses.value = [...filters.translationStatuses]
-  }
-
-  if (!arraysEqual(selectedTags.value, filters.tags)) {
-    selectedTags.value = [...filters.tags]
-  }
-
-  if (!arraysEqual(selectedCategories.value, filters.categories)) {
-    selectedCategories.value = [...filters.categories]
-  }
-
-  if (selectedSortBy.value !== filters.sortBy) {
-    selectedSortBy.value = filters.sortBy
-  }
-
-  if (selectedSortDirection.value !== filters.sortDirection) {
-    selectedSortDirection.value = filters.sortDirection
-  }
-}
-
-function buildCurrentFilters(): BookCatalogFilters {
-  return {
-    search: search.value,
-    types: [...selectedTypes.value],
-    originalStatuses: [...selectedOriginalStatuses.value],
-    translationStatuses: [...selectedTranslationStatuses.value],
-    tags: [...selectedTags.value],
-    categories: [...selectedCategories.value],
-    sortBy: selectedSortBy.value,
-    sortDirection: selectedSortDirection.value,
-  }
-}
-
-// ── Computed ───────────────────────────────────────────
-
-const appliedFilters = computed(() => parseRouteFilters())
-const appliedFiltersSignature = computed(() => getQuerySignature(buildRouteQuery(appliedFilters.value)))
-const hasActiveFilters = computed(() => {
-  const f = appliedFilters.value
-  return f.search.trim() !== ''
-    || f.types.length > 0
-    || f.originalStatuses.length > 0
-    || f.translationStatuses.length > 0
-    || f.tags.length > 0
-    || f.categories.length > 0
-})
-const currentSortLabel = computed(() => {
-  const opt = catalogSortOptions.find(
-    o => o.sortBy === appliedFilters.value.sortBy && o.sortDirection === appliedFilters.value.sortDirection,
-  )
-  return opt?.label ?? 'Сортировка'
-})
-
-// ── Cursor-based catalog data ──────────────────────────
+const {
+  search,
+  appliedFilters,
+  appliedFiltersSignature,
+  hasActiveFilters,
+  filterSections,
+  activeFilterChips,
+  currentSortLabel,
+  clearFilters,
+  selectSort,
+  catalogSortOptions,
+} = useCatalogFilters(availableTags, availableCategories)
 
 const {
   books,
@@ -256,109 +49,6 @@ const {
   loadFirstPage,
   loadMore,
 } = useCatalogCursor(appliedFilters)
-
-syncUiState(appliedFilters.value)
-
-watch(appliedFiltersSignature, () => {
-  syncUiState(appliedFilters.value)
-})
-
-// ── Tags & Categories ─────────────────────────────────
-
-const { data: availableTags } = await useApiFetch<TagDto[]>('/api/tags')
-const { data: availableCategories } = await useApiFetch<CategoryDto[]>('/api/categories')
-
-const tagNameBySlug = computed(() => new Map((availableTags.value ?? []).map(tag => [tag.slug, tag.name])))
-const categoryNameBySlug = computed(() => new Map((availableCategories.value ?? []).map(category => [category.slug, category.name])))
-
-// ── Active Filter Chips ───────────────────────────────
-
-const activeFilterChips = computed(() => [
-  ...(appliedFilters.value.search
-    ? [{
-        key: `search:${appliedFilters.value.search}`,
-        label: `Поиск: ${appliedFilters.value.search}`,
-        remove: async () => {
-          search.value = ''
-          await updateRouteFilters()
-        },
-      }]
-    : []),
-  ...appliedFilters.value.types.map(type => ({
-    key: `type:${type}`,
-    label: bookTypeLabels[type],
-    remove: () => toggleSelection(selectedTypes, type),
-  })),
-  ...appliedFilters.value.originalStatuses.map(status => ({
-    key: `original:${status}`,
-    label: `Оригинал: ${originalStatusLabels[status]}`,
-    remove: () => toggleSelection(selectedOriginalStatuses, status),
-  })),
-  ...appliedFilters.value.translationStatuses.map(status => ({
-    key: `translation:${status}`,
-    label: `Перевод: ${translationStatusLabels[status]}`,
-    remove: () => toggleSelection(selectedTranslationStatuses, status),
-  })),
-  ...appliedFilters.value.tags.map(tag => ({
-    key: `tag:${tag}`,
-    label: `Тег: ${tagNameBySlug.value.get(tag) ?? tag}`,
-    remove: () => toggleSelection(selectedTags, tag),
-  })),
-  ...appliedFilters.value.categories.map(category => ({
-    key: `category:${category}`,
-    label: `Категория: ${categoryNameBySlug.value.get(category) ?? category}`,
-    remove: () => toggleSelection(selectedCategories, category),
-  })),
-])
-
-// ── Route & Filter Actions ────────────────────────────
-
-async function updateRouteFilters() {
-  const nextQuery = buildRouteQuery(buildCurrentFilters())
-
-  if (getQuerySignature(nextQuery) === getQuerySignature(route.query)) {
-    return
-  }
-
-  await router.replace({ query: nextQuery })
-}
-
-const applySearch = useDebounceFn(() => {
-  void updateRouteFilters()
-}, 350)
-
-watch(search, () => {
-  applySearch()
-})
-
-async function toggleSelection<T extends string | number>(target: Ref<T[]>, value: T) {
-  const current = target.value ?? []
-  target.value = current.includes(value)
-    ? current.filter(item => item !== value)
-    : [...current, value]
-
-  await updateRouteFilters()
-}
-
-async function selectSort(option: SortOption) {
-  selectedSortBy.value = option.sortBy
-  selectedSortDirection.value = option.sortDirection
-  sortDropdownOpen.value = false
-  await updateRouteFilters()
-}
-
-async function clearFilters() {
-  search.value = ''
-  selectedTypes.value = []
-  selectedOriginalStatuses.value = []
-  selectedTranslationStatuses.value = []
-  selectedTags.value = []
-  selectedCategories.value = []
-
-  await updateRouteFilters()
-}
-
-// ── Data Fetching ─────────────────────────────────────
 
 await loadFirstPage()
 
@@ -376,99 +66,51 @@ useIntersectionObserver(
   { rootMargin: '200px' },
 )
 
-// ── Filter sidebar sections ───────────────────────────
-
-const filterSections = computed(() => {
-  const sections = []
-
-  sections.push({
-    id: 'type',
-    title: 'Тип',
-    items: bookTypeOptions.map(type => ({
-      key: type,
-      label: bookTypeLabels[type],
-      selected: (selectedTypes.value ?? []).includes(type),
-      toggle: () => toggleSelection(selectedTypes, type),
-    })),
-  })
-
-  sections.push({
-    id: 'original',
-    title: 'Статус оригинала',
-    items: originalStatusOptions.map(status => ({
-      key: status,
-      label: originalStatusLabels[status],
-      selected: (selectedOriginalStatuses.value ?? []).includes(status),
-      toggle: () => toggleSelection(selectedOriginalStatuses, status),
-    })),
-  })
-
-  sections.push({
-    id: 'translation',
-    title: 'Статус перевода',
-    items: translationStatusOptions.map(status => ({
-      key: status,
-      label: translationStatusLabels[status],
-      selected: (selectedTranslationStatuses.value ?? []).includes(status),
-      toggle: () => toggleSelection(selectedTranslationStatuses, status),
-    })),
-  })
-
-  if (availableTags.value?.length) {
-    sections.push({
-      id: 'tags',
-      title: 'Теги',
-      items: availableTags.value.map(tag => ({
-        key: tag.slug,
-        label: tag.name,
-        selected: (selectedTags.value ?? []).includes(tag.slug),
-        toggle: () => toggleSelection(selectedTags, tag.slug),
-      })),
-    })
+const resultsSummary = computed(() => {
+  if (books.value.length > 0) {
+    return `${books.value.length} произведений`
   }
-
-  if (availableCategories.value?.length) {
-    sections.push({
-      id: 'categories',
-      title: 'Категории',
-      items: availableCategories.value.map(category => ({
-        key: category.slug,
-        label: category.name,
-        selected: (selectedCategories.value ?? []).includes(category.slug),
-        toggle: () => toggleSelection(selectedCategories, category.slug),
-      })),
-    })
+  if (pending.value) {
+    return 'Обновляем каталог...'
   }
+  if (hasActiveFilters.value) {
+    return 'По текущим фильтрам ничего не найдено'
+  }
+  return 'Каталог пуст'
+})
 
-  return sections
+const emptyState = computed(() => {
+  if (hasActiveFilters.value) {
+    return {
+      badge: 'Ничего не найдено',
+      title: 'Попробуйте изменить фильтры',
+      description: 'Сузьте запрос, снимите часть фильтров или очистите поиск, чтобы увидеть больше произведений.',
+    }
+  }
+  return {
+    badge: 'Каталог пуст',
+    title: 'Каталог пока пуст',
+    description: 'Когда книги появятся в системе, они отобразятся здесь автоматически.',
+  }
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-background">
     <main class="container px-3 py-4 md:px-8 md:py-8">
-      <section class="mb-6 space-y-4 md:mb-8">
+      <section class="mb-6 space-y-4 md:mb-8" aria-labelledby="catalog-title">
         <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 class="text-3xl font-bold tracking-tight md:text-4xl">Каталог произведений</h1>
+            <h1 id="catalog-title" class="text-3xl font-bold tracking-tight md:text-4xl">
+              Каталог произведений
+            </h1>
             <p class="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
               Ищите по названию и описанию, отбирайте тайтлы по типу, статусам, тегам и категориям.
             </p>
           </div>
 
           <div class="text-sm text-muted-foreground">
-            <template v-if="books.length > 0">
-              {{ books.length }} произведений
-            </template>
-            <template v-else-if="pending">
-              Обновляем каталог...
-            </template>
-            <template v-else-if="hasActiveFilters">
-              По текущим фильтрам ничего не найдено
-            </template>
-            <template v-else>
-              Каталог пуст
-            </template>
+            {{ resultsSummary }}
           </div>
         </div>
 
@@ -480,6 +122,7 @@ const filterSections = computed(() => {
                 v-model="search"
                 class="h-11 rounded-2xl pl-10"
                 placeholder="Название, slug или описание"
+                aria-label="Поиск по каталогу"
               />
             </div>
 
@@ -487,7 +130,7 @@ const filterSections = computed(() => {
               <PopoverTrigger as-child>
                 <Button
                   variant="outline"
-                  class="h-11 min-w-[220px] justify-between rounded-2xl"
+                  class="h-11 min-w-56 justify-between rounded-2xl"
                 >
                   <span class="flex items-center gap-2">
                     <ArrowUpDown class="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -496,7 +139,7 @@ const filterSections = computed(() => {
                   <ChevronDown class="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent class="w-[260px] p-1.5" align="end">
+              <PopoverContent class="w-64 p-1.5" align="end">
                 <button
                   v-for="option in catalogSortOptions"
                   :key="`${option.sortBy}-${option.sortDirection}`"
@@ -505,7 +148,7 @@ const filterSections = computed(() => {
                   :class="option.sortBy === appliedFilters.sortBy && option.sortDirection === appliedFilters.sortDirection
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-foreground'"
-                  @click="selectSort(option)"
+                  @click="selectSort(option.sortBy, option.sortDirection)"
                 >
                   {{ option.label }}
                 </button>
@@ -519,7 +162,7 @@ const filterSections = computed(() => {
             >
               <SlidersHorizontal class="mr-2 h-4 w-4" />
               Фильтры
-              <Badge v-if="hasActiveFilters" class="ml-2 rounded-full px-1.5 py-0.5 text-[10px]">
+              <Badge v-if="hasActiveFilters" class="ml-2 rounded-full px-1.5 py-0.5 text-xs">
                 !
               </Badge>
             </Button>
@@ -559,7 +202,7 @@ const filterSections = computed(() => {
           :key="section.id"
           class="rounded-2xl border bg-card/50 p-4"
         >
-          <p class="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             {{ section.title }}
           </p>
           <div class="flex flex-wrap gap-1.5">
@@ -587,7 +230,7 @@ const filterSections = computed(() => {
               :key="section.id"
               class="rounded-2xl border bg-card/50 p-4"
             >
-              <p class="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 {{ section.title }}
               </p>
               <div class="flex flex-wrap gap-1.5">
@@ -608,27 +251,23 @@ const filterSections = computed(() => {
           </div>
         </aside>
 
-
         <div class="min-w-0 flex-1">
-          <div v-if="pending && books.length === 0" class="flex items-center justify-center py-32">
-            <RefreshCw class="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <AppState
+            v-if="pending && books.length === 0"
+            variant="loading"
+            class="py-16"
+            loading-text="Загружаем каталог..."
+          />
 
-          <div
+          <AppState
             v-else-if="error"
-            class="mx-auto max-w-md rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center"
-          >
-            <p class="text-lg font-semibold text-destructive">Ошибка загрузки</p>
-            <p class="mt-2 text-sm text-muted-foreground">
-              Не удалось получить каталог с сервера. Проверьте, что backend запущен и доступен.
-            </p>
-            <Button class="mt-4" @click="loadFirstPage">
-              <RefreshCw class="mr-2 h-4 w-4" />
-              Повторить
-            </Button>
-          </div>
+            variant="error"
+            title="Ошибка загрузки"
+            description="Не удалось получить каталог с сервера. Проверьте, что backend запущен и доступен."
+            @retry="loadFirstPage"
+          />
 
-          <div v-else-if="books.length > 0">
+          <template v-else-if="books.length > 0">
             <BookGrid :books="books" compact />
 
             <div
@@ -643,35 +282,25 @@ const filterSections = computed(() => {
                 Вы просмотрели все доступные произведения
               </p>
             </div>
-          </div>
+          </template>
 
-          <div
+          <AppState
             v-else
-            class="flex flex-col items-center justify-center rounded-3xl border border-dashed py-24 text-center"
+            variant="empty"
+            :badge="emptyState.badge"
+            :title="emptyState.title"
+            :description="emptyState.description"
+            class="border-dashed py-16"
           >
-            <Badge variant="secondary" class="mb-4 rounded-full px-3 py-1">
-              Ничего не найдено
-            </Badge>
-            <Library class="h-16 w-16 text-muted-foreground/30" />
-            <p class="mt-4 text-lg font-medium text-foreground">
-              {{ hasActiveFilters ? 'Попробуйте изменить фильтры' : 'Каталог пока пуст' }}
-            </p>
-            <p class="mt-2 max-w-md text-sm text-muted-foreground/70">
-              {{
-                hasActiveFilters
-                  ? 'Сузьте запрос, снимите часть фильтров или очистите поиск, чтобы увидеть больше произведений.'
-                  : 'Когда книги появятся в системе, они отобразятся здесь автоматически.'
-              }}
-            </p>
-            <Button
-              v-if="hasActiveFilters"
-              variant="outline"
-              class="mt-5 rounded-2xl"
-              @click="clearFilters"
-            >
-              Очистить фильтры
-            </Button>
-          </div>
+            <template #icon>
+              <Library class="h-16 w-16 text-muted-foreground/30" />
+            </template>
+            <template v-if="hasActiveFilters" #actions>
+              <Button variant="outline" class="rounded-2xl" @click="clearFilters">
+                Очистить фильтры
+              </Button>
+            </template>
+          </AppState>
         </div>
       </div>
     </main>

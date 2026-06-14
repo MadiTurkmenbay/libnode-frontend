@@ -1,9 +1,29 @@
 <script setup lang="ts">
 import { useAuth } from '~/composables/useAuth'
 import { Button } from '@/components/ui/button'
+import { AuthModal } from '@/components/auth'
 import { Library } from 'lucide-vue-next'
 
 const { user, isAuthenticated, isAdmin, logout } = useAuth()
+const { toast } = useToast()
+
+const isAuthModalOpen = ref(false)
+const authModalTab = ref<'login' | 'register'>('login')
+
+function openLogin() {
+  authModalTab.value = 'login'
+  isAuthModalOpen.value = true
+}
+
+function openRegister() {
+  authModalTab.value = 'register'
+  isAuthModalOpen.value = true
+}
+
+function handleLogout() {
+  logout()
+  toast('Вы вышли из аккаунта')
+}
 </script>
 
 <template>
@@ -34,14 +54,14 @@ const { user, isAuthenticated, isAdmin, logout } = useAuth()
       <div class="flex flex-1 items-center justify-end space-x-4">
         <nav class="flex items-center space-x-2">
           <template v-if="!isAuthenticated">
-            <Button as-child variant="ghost" class="h-8 px-4">
-              <NuxtLink to="/login">Войти</NuxtLink>
+            <Button variant="ghost" class="h-8 px-4" @click="openLogin">
+              Войти
             </Button>
-            <Button as-child class="h-8 px-4">
-              <NuxtLink to="/register">Регистрация</NuxtLink>
+            <Button class="h-8 px-4" @click="openRegister">
+              Регистрация
             </Button>
           </template>
-          
+
           <template v-else>
             <div class="text-sm font-medium pr-2 border-r hidden sm:block">
               Привет, {{ user?.username }}
@@ -52,7 +72,7 @@ const { user, isAuthenticated, isAdmin, logout } = useAuth()
             <Button v-if="isAdmin" as-child variant="outline" class="h-8 px-4">
               <NuxtLink to="/admin">Админка</NuxtLink>
             </Button>
-            <Button variant="ghost" class="h-8 px-4 text-destructive hover:bg-destructive/10 hover:text-destructive" @click="logout">
+            <Button variant="ghost" class="h-8 px-4 text-destructive hover:bg-destructive/10 hover:text-destructive" @click="handleLogout">
               Выйти
             </Button>
           </template>
@@ -60,4 +80,9 @@ const { user, isAuthenticated, isAdmin, logout } = useAuth()
       </div>
     </div>
   </header>
+
+  <AuthModal
+    v-model:open="isAuthModalOpen"
+    :initial-tab="authModalTab"
+  />
 </template>

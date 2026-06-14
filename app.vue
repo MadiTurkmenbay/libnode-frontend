@@ -1,5 +1,6 @@
 <template>
   <div class="relative flex min-h-screen flex-col bg-background">
+    <NuxtLoadingIndicator color="hsl(var(--primary))" />
     <SiteHeader />
     <div class="flex-1">
       <NuxtPage />

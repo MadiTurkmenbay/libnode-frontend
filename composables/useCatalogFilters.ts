@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { LocationQueryRaw } from 'vue-router'
+import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { bookTypeLabels, catalogSortOptions, originalStatusLabels, translationStatusLabels } from '~/lib/enums'
 import {
@@ -13,29 +13,157 @@ import {
   type TagDto,
 } from '~/types'
 
-export async function useCatalogFilters() {
-  const bookTypeOptions = [
-    BookType.Japan,
-    BookType.Korea,
-    BookType.China,
-    BookType.English,
-    BookType.Original,
-    BookType.Fanfic,
-  ] as const
-  const originalStatusOptions = [
-    OriginalStatus.None,
-    OriginalStatus.Ongoing,
-    OriginalStatus.Completed,
-    OriginalStatus.Hiatus,
-  ] as const
-  const translationStatusOptions = [
-    TranslationStatus.None,
-    TranslationStatus.Ongoing,
-    TranslationStatus.Completed,
-    TranslationStatus.Dropped,
-    TranslationStatus.Hiatus,
-  ] as const
+const bookTypeOptions = [
+  BookType.Japan,
+  BookType.Korea,
+  BookType.China,
+  BookType.English,
+  BookType.Original,
+  BookType.Fanfic,
+] as const
 
+const originalStatusOptions = [
+  OriginalStatus.None,
+  OriginalStatus.Ongoing,
+  OriginalStatus.Completed,
+  OriginalStatus.Hiatus,
+] as const
+
+const translationStatusOptions = [
+  TranslationStatus.None,
+  TranslationStatus.Ongoing,
+  TranslationStatus.Completed,
+  TranslationStatus.Dropped,
+  TranslationStatus.Hiatus,
+] as const
+
+export type CatalogFilterSectionItem = {
+  key: string | number
+  label: string
+  selected: boolean
+  toggle: () => Promise<void> | void
+}
+
+export type CatalogFilterSection = {
+  id: string
+  title: string
+  items: CatalogFilterSectionItem[]
+}
+
+export type ActiveFilterChip = {
+  key: string
+  label: string
+  remove: () => Promise<void> | void
+}
+
+export function normalizeQueryValues(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap(normalizeQueryValues)
+  }
+
+  if (value === null || value === undefined) {
+    return []
+  }
+
+  const normalized = String(value).trim()
+  return normalized ? [normalized] : []
+}
+
+export function parseEnumFilter<T extends number>(value: unknown, allowedValues: readonly T[]): T[] {
+  const allowed = new Set(allowedValues.map(String))
+
+  return [...new Set(
+    normalizeQueryValues(value)
+      .filter(item => allowed.has(item))
+      .map(item => Number(item) as T),
+  )]
+}
+
+export function parseStringFilter(value: unknown): string[] {
+  return [...new Set(normalizeQueryValues(value))]
+}
+
+export function parseSortBy(value: unknown): CatalogSortBy {
+  const raw = normalizeQueryValues(value)[0]
+  const allowed = Object.values(CatalogSortBy) as string[]
+  return allowed.includes(raw ?? '') ? (raw as CatalogSortBy) : CatalogSortBy.CreatedAt
+}
+
+export function parseSortDirection(value: unknown): SortDirection {
+  const raw = normalizeQueryValues(value)[0]
+  return raw === SortDirection.Asc ? SortDirection.Asc : SortDirection.Desc
+}
+
+export function parseRouteFilters(query: LocationQuery): BookCatalogFilters {
+  return {
+    search: normalizeQueryValues(query.search)[0] ?? '',
+    types: parseEnumFilter(query.types, bookTypeOptions),
+    originalStatuses: parseEnumFilter(query.originalStatuses, originalStatusOptions),
+    translationStatuses: parseEnumFilter(query.translationStatuses, translationStatusOptions),
+    tags: parseStringFilter(query.tags),
+    categories: parseStringFilter(query.categories),
+    sortBy: parseSortBy(query.sortBy),
+    sortDirection: parseSortDirection(query.sortDirection),
+  }
+}
+
+export function buildRouteQuery(filters: BookCatalogFilters): LocationQueryRaw {
+  const query: LocationQueryRaw = {}
+  const trimmedSearch = filters.search.trim()
+
+  if (trimmedSearch) {
+    query.search = trimmedSearch
+  }
+
+  if (filters.types.length) {
+    query.types = [...filters.types].sort((left, right) => left - right).map(String)
+  }
+
+  if (filters.originalStatuses.length) {
+    query.originalStatuses = [...filters.originalStatuses].sort((left, right) => left - right).map(String)
+  }
+
+  if (filters.translationStatuses.length) {
+    query.translationStatuses = [...filters.translationStatuses].sort((left, right) => left - right).map(String)
+  }
+
+  if (filters.tags.length) {
+    query.tags = [...filters.tags].sort((left, right) => left.localeCompare(right))
+  }
+
+  if (filters.categories.length) {
+    query.categories = [...filters.categories].sort((left, right) => left.localeCompare(right))
+  }
+
+  if (filters.sortBy !== CatalogSortBy.CreatedAt) {
+    query.sortBy = filters.sortBy
+  }
+
+  if (filters.sortDirection !== SortDirection.Desc) {
+    query.sortDirection = filters.sortDirection
+  }
+
+  return query
+}
+
+export function getQuerySignature(query: Record<string, unknown>): string {
+  return JSON.stringify(
+    Object.fromEntries(
+      Object.entries(query)
+        .map(([key, value]) => [key, normalizeQueryValues(value).sort((left, right) => left.localeCompare(right))] as const)
+        .filter(([, value]) => value.length > 0),
+    ),
+  )
+}
+
+function arraysEqual<T extends string | number>(left: T[], right: T[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index])
+}
+
+export function useCatalogFilters(
+  availableTags?: Ref<TagDto[] | null | undefined>,
+  availableCategories?: Ref<CategoryDto[] | null | undefined>,
+) {
   const route = useRoute()
   const router = useRouter()
 
@@ -47,110 +175,6 @@ export async function useCatalogFilters() {
   const selectedCategories = ref<string[]>([])
   const selectedSortBy = ref<CatalogSortBy>(CatalogSortBy.CreatedAt)
   const selectedSortDirection = ref<SortDirection>(SortDirection.Desc)
-
-  function normalizeQueryValues(value: unknown): string[] {
-    if (Array.isArray(value)) {
-      return value.flatMap(normalizeQueryValues)
-    }
-
-    if (value === null || value === undefined) {
-      return []
-    }
-
-    const normalized = String(value).trim()
-    return normalized ? [normalized] : []
-  }
-
-  function parseEnumFilter<T extends number>(value: unknown, allowedValues: readonly T[]): T[] {
-    const allowed = new Set(allowedValues.map(String))
-
-    return [...new Set(
-      normalizeQueryValues(value)
-        .filter(item => allowed.has(item))
-        .map(item => Number(item) as T),
-    )]
-  }
-
-  function parseStringFilter(value: unknown): string[] {
-    return [...new Set(normalizeQueryValues(value))]
-  }
-
-  function parseSortBy(value: unknown): CatalogSortBy {
-    const raw = normalizeQueryValues(value)[0]
-    const allowed = Object.values(CatalogSortBy) as string[]
-    return allowed.includes(raw ?? '') ? (raw as CatalogSortBy) : CatalogSortBy.CreatedAt
-  }
-
-  function parseSortDirection(value: unknown): SortDirection {
-    const raw = normalizeQueryValues(value)[0]
-    return raw === SortDirection.Asc ? SortDirection.Asc : SortDirection.Desc
-  }
-
-  function parseRouteFilters(): BookCatalogFilters {
-    return {
-      search: normalizeQueryValues(route.query.search)[0] ?? '',
-      types: parseEnumFilter(route.query.types, bookTypeOptions),
-      originalStatuses: parseEnumFilter(route.query.originalStatuses, originalStatusOptions),
-      translationStatuses: parseEnumFilter(route.query.translationStatuses, translationStatusOptions),
-      tags: parseStringFilter(route.query.tags),
-      categories: parseStringFilter(route.query.categories),
-      sortBy: parseSortBy(route.query.sortBy),
-      sortDirection: parseSortDirection(route.query.sortDirection),
-    }
-  }
-
-  function buildRouteQuery(filters: BookCatalogFilters): LocationQueryRaw {
-    const query: LocationQueryRaw = {}
-    const trimmedSearch = filters.search.trim()
-
-    if (trimmedSearch) {
-      query.search = trimmedSearch
-    }
-
-    if (filters.types.length) {
-      query.types = [...filters.types].sort((left, right) => left - right).map(String)
-    }
-
-    if (filters.originalStatuses.length) {
-      query.originalStatuses = [...filters.originalStatuses].sort((left, right) => left - right).map(String)
-    }
-
-    if (filters.translationStatuses.length) {
-      query.translationStatuses = [...filters.translationStatuses].sort((left, right) => left - right).map(String)
-    }
-
-    if (filters.tags.length) {
-      query.tags = [...filters.tags].sort((left, right) => left.localeCompare(right))
-    }
-
-    if (filters.categories.length) {
-      query.categories = [...filters.categories].sort((left, right) => left.localeCompare(right))
-    }
-
-    if (filters.sortBy !== CatalogSortBy.CreatedAt) {
-      query.sortBy = filters.sortBy
-    }
-
-    if (filters.sortDirection !== SortDirection.Desc) {
-      query.sortDirection = filters.sortDirection
-    }
-
-    return query
-  }
-
-  function getQuerySignature(query: Record<string, unknown>): string {
-    return JSON.stringify(
-      Object.fromEntries(
-        Object.entries(query)
-          .map(([key, value]) => [key, normalizeQueryValues(value).sort((left, right) => left.localeCompare(right))] as const)
-          .filter(([, value]) => value.length > 0),
-      ),
-    )
-  }
-
-  function arraysEqual<T extends string | number>(left: T[], right: T[]): boolean {
-    return left.length === right.length && left.every((value, index) => value === right[index])
-  }
 
   function syncUiState(filters: BookCatalogFilters) {
     if (search.value !== filters.search) {
@@ -243,7 +267,7 @@ export async function useCatalogFilters() {
     await updateRouteFilters()
   }
 
-  const appliedFilters = computed(() => parseRouteFilters())
+  const appliedFilters = computed(() => parseRouteFilters(route.query))
   const appliedFiltersSignature = computed(() => getQuerySignature(buildRouteQuery(appliedFilters.value)))
   const hasActiveFilters = computed(() => {
     const filters = appliedFilters.value
@@ -261,13 +285,10 @@ export async function useCatalogFilters() {
     syncUiState(appliedFilters.value)
   })
 
-  const { data: availableTags } = await useApiFetch<TagDto[]>('/api/tags')
-  const { data: availableCategories } = await useApiFetch<CategoryDto[]>('/api/categories')
+  const tagNameBySlug = computed(() => new Map((availableTags?.value ?? []).map(tag => [tag.slug, tag.name])))
+  const categoryNameBySlug = computed(() => new Map((availableCategories?.value ?? []).map(category => [category.slug, category.name])))
 
-  const tagNameBySlug = computed(() => new Map((availableTags.value ?? []).map(tag => [tag.slug, tag.name])))
-  const categoryNameBySlug = computed(() => new Map((availableCategories.value ?? []).map(category => [category.slug, category.name])))
-
-  const activeFilterChips = computed(() => [
+  const activeFilterChips = computed<ActiveFilterChip[]>(() => [
     ...(appliedFilters.value.search
       ? [{
           key: `search:${appliedFilters.value.search}`,
@@ -305,8 +326,8 @@ export async function useCatalogFilters() {
     })),
   ])
 
-  const filterSections = computed(() => {
-    const sections = []
+  const filterSections = computed<CatalogFilterSection[]>(() => {
+    const sections: CatalogFilterSection[] = []
 
     sections.push({
       id: 'type',
@@ -341,7 +362,7 @@ export async function useCatalogFilters() {
       })),
     })
 
-    if (availableTags.value?.length) {
+    if (availableTags?.value?.length) {
       sections.push({
         id: 'tags',
         title: 'Теги',
@@ -354,7 +375,7 @@ export async function useCatalogFilters() {
       })
     }
 
-    if (availableCategories.value?.length) {
+    if (availableCategories?.value?.length) {
       sections.push({
         id: 'categories',
         title: 'Категории',
@@ -382,8 +403,6 @@ export async function useCatalogFilters() {
     appliedFilters,
     appliedFiltersSignature,
     hasActiveFilters,
-    availableTags,
-    availableCategories,
     filterSections,
     activeFilterChips,
     currentSortLabel,

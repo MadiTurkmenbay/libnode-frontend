@@ -5,6 +5,12 @@
 @layer base {
   :root {
     color-scheme: dark;
+
+    /* 60/30/10 token distribution:
+       - 60%: background/surface neutrals (background, card, popover)
+       - 30%: primary action (primary, accent)
+       - 10%: destructive / success / reader theme accents
+    */
     --background: 0 0% 3.9%;
     --foreground: 0 0% 95%;
     --card: 0 0% 6%;
@@ -21,10 +27,23 @@
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 50.6%;
     --destructive-foreground: 0 0% 95%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 95%;
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
     --ring: 262 83% 68%;
     --radius: 0.75rem;
+
+    /* Reader theme tokens (background, foreground, border) */
+    --reader-dark-bg: 0 0% 3.9%;
+    --reader-dark-fg: 0 0% 95%;
+    --reader-dark-border: 0 0% 14.9%;
+    --reader-light-bg: 0 0% 100%;
+    --reader-light-fg: 220 14% 10%;
+    --reader-light-border: 220 13% 85%;
+    --reader-sepia-bg: 43 54% 90%;
+    --reader-sepia-fg: 30 25% 26%;
+    --reader-sepia-border: 43 35% 75%;
   }
 }
 
@@ -75,5 +94,50 @@
     -webkit-text-fill-color: hsl(var(--foreground));
     box-shadow: 0 0 0 1000px hsl(var(--background)) inset;
     transition: background-color 9999s ease-out 0s;
+  }
+}
+
+@layer utilities {
+  .bg-reader-light {
+    background-color: hsl(var(--reader-light-bg));
+    color: hsl(var(--reader-light-fg));
+  }
+
+  .bg-reader-sepia {
+    background-color: hsl(var(--reader-sepia-bg));
+    color: hsl(var(--reader-sepia-fg));
+  }
+
+  .bg-reader-dark {
+    background-color: hsl(var(--reader-dark-bg));
+    color: hsl(var(--reader-dark-fg));
+  }
+
+  .text-reader-light {
+    color: hsl(var(--reader-light-fg));
+  }
+
+  .text-reader-sepia {
+    color: hsl(var(--reader-sepia-fg));
+  }
+
+  .text-reader-dark {
+    color: hsl(var(--reader-dark-fg));
+  }
+
+  .border-reader-light {
+    border-color: hsl(var(--reader-light-border));
+  }
+
+  .border-reader-sepia {
+    border-color: hsl(var(--reader-sepia-border));
+  }
+
+  .border-reader-dark {
+    border-color: hsl(var(--reader-dark-border));
+  }
+
+  .min-h-exclude-header {
+    min-height: calc(100vh - 3.5rem);
   }
 }

@@ -4,6 +4,8 @@ import { useIntersectionObserver } from '@vueuse/core'
 import type { BookCollectionStatusDto, BookDetailDto, ChapterListDto, CursorPagedResult } from '~/types'
 import { bookTypeLabels, originalStatusLabels, translationStatusLabels } from '~/lib/enums'
 import { Badge } from '~/components/ui/badge'
+import { Button } from '~/components/ui/button'
+import AppState from '~/components/AppState.vue'
 
 const route = useRoute()
 const bookId = route.params.id as string
@@ -235,15 +237,31 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
     </header>
 
     <main class="container py-8">
-      <div v-if="bookPending" class="animate-pulse py-20 text-center text-muted-foreground">
-        Загрузка информации о книге...
-      </div>
-      <div v-else-if="bookError || !book" class="py-20 text-center text-destructive">
-        Ошибка: книга не найдена
-      </div>
+      <AppState
+        v-if="bookPending"
+        variant="loading"
+        class="py-16"
+        loading-text="Загрузка информации о книге..."
+      />
+
+      <AppState
+        v-else-if="bookError || !book"
+        variant="error"
+        title="Книга не найдена"
+        description="Возможно, она была удалена или ссылка устарела."
+        class="py-16"
+      >
+        <template #actions>
+          <Button as-child variant="outline">
+            <NuxtLink to="/catalog">
+              Вернуться в каталог
+            </NuxtLink>
+          </Button>
+        </template>
+      </AppState>
 
       <div v-else class="flex flex-col gap-6 md:flex-row md:gap-8 lg:gap-12">
-        <div class="mx-auto w-full max-w-[300px] shrink-0 space-y-4 md:w-[300px] md:max-w-none">
+        <div class="mx-auto w-full max-w-72 shrink-0 space-y-4 md:w-72 md:max-w-none">
           <div class="relative aspect-[3/4] overflow-hidden rounded-xl border bg-secondary shadow-lg">
             <img
               v-if="book.coverUrl"
@@ -341,13 +359,13 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
           </div>
 
           <div v-if="book.description" class="prose prose-invert max-w-none">
-            <h3 class="mb-2 text-xl font-semibold">Описание</h3>
+            <h2 class="mb-2 text-xl font-semibold">Описание</h2>
             <p class="leading-relaxed text-muted-foreground">{{ book.description }}</p>
           </div>
 
-          <div class="space-y-4">
+          <section class="space-y-4" aria-labelledby="book-chapters-title">
             <div class="flex items-center justify-between border-b pb-2">
-              <h3 class="text-xl font-semibold tracking-tight md:text-2xl">Главы</h3>
+              <h2 id="book-chapters-title" class="text-xl font-semibold tracking-tight md:text-2xl">Главы</h2>
               <div class="flex items-center gap-3">
                 <button
                   class="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
@@ -390,7 +408,7 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
                     </span>
                     <button
                       class="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors hover:bg-secondary"
-                      :class="chapter.isLikedByCurrentUser ? 'text-rose-500' : 'text-muted-foreground hover:text-foreground'"
+                      :class="chapter.isLikedByCurrentUser ? 'text-destructive' : 'text-muted-foreground hover:text-foreground'"
                       :disabled="!isAuthenticated || chapter.isLikedByCurrentUser"
                       :title="!isAuthenticated ? 'Войдите, чтобы поставить лайк' : chapter.isLikedByCurrentUser ? 'Вам уже понравилось' : 'Лайкнуть'"
                       @click="(event) => likeChapter(event, chapter)"
@@ -419,11 +437,19 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
               </div>
             </div>
 
-            <div v-else class="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-              <BookOpen class="mx-auto mb-2 h-8 w-8 opacity-50" />
-              <p>В этой книге пока нет ни одной главы.</p>
-            </div>
-          </div>
+            <AppState
+              v-else
+              variant="empty"
+              badge="Нет глав"
+              title="В этой книге пока нет глав"
+              description="Когда главы появятся, они отобразятся здесь."
+              class="border-dashed py-8"
+            >
+              <template #icon>
+                <BookOpen class="h-8 w-8 text-muted-foreground/50" />
+              </template>
+            </AppState>
+          </section>
         </div>
       </div>
     </main>

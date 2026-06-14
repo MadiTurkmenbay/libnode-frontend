@@ -119,3 +119,46 @@
 ## Обновление документации
 
 - [MANDATORY] Добавил новый глобальный store, новый composable-стандарт, новый middleware-слой, новый UI foundation или новый способ хранения состояния — обнови этот файл в том же изменении.
+
+## Phase 08 — Frontend UX Polish
+
+### Auth modal pattern
+
+- [CRITICAL] `components/auth/AuthModal.vue` is the canonical login/register modal shell. It uses the existing `Dialog` primitive and contains `LoginForm`/`RegisterForm` tabs. `SiteHeader.vue` opens this modal instead of navigating to `/login` or `/register`.
+- [MANDATORY] `pages/login.vue` and `pages/register.vue` remain as route fallbacks that render `AuthModal` with `open=true` and `initial-tab` set appropriately.
+- [MANDATORY] `components/auth/LoginForm.vue` and `components/auth/RegisterForm.vue` are pure form components that delegate to `useAuth` and emit `success`/`error`. They are reused inside the modal and by the fallback pages.
+- [MANDATORY] `components/auth/index.ts` exports `AuthModal`, `LoginForm`, and `RegisterForm` for clean imports.
+
+### Reader settings
+
+- [CRITICAL] `composables/useReaderSettings.ts` owns reader UI preferences. It exposes `settings`, `isReady`, `setTheme`, `setFontFamily`, `setLineHeight`, `increaseFontSize`, `decreaseFontSize`, and `resetDefaults`.
+- [MANDATORY] `ReaderSettings.vue` uses preset chips for line-height and theme, exposes quick font-size controls, and resets to `DEFAULT_READER_SETTINGS`.
+- [MANDATORY] Reader settings remain in `localStorage` only and must not store auth, API cache, or domain data. SSR/hydration safety is preserved through `isReady`.
+
+### UX micro-improvements
+
+- [MANDATORY] `app.vue` includes `<NuxtLoadingIndicator>` for page-level loading feedback.
+- [MANDATORY] `SiteHeader.vue` provides toast feedback on logout via `useToast`.
+- [MANDATORY] Auth form inputs use `autofocus` for better keyboard flow inside the modal.
+
+## Phase 07 — Catalog UI Consolidation
+
+### Components
+
+- [CRITICAL] `components/AppState.vue` is the canonical reusable empty/error/loading state component. Use it for list empty states, error retry surfaces, and centered loading placeholders. Do not recreate one-off empty/error blocks in pages.
+- [CRITICAL] Dead Nuxt UI-based components were removed: `components/app/*`, `components/auth/AuthCardShell.vue`, `components/catalog/CatalogFiltersPanel.vue`. Do not reintroduce `UBadge`, `UButton`, `UIcon`, `UInput`, `UCard`, or one-off `surface-*` classes.
+
+### Catalog filters and pagination
+
+- [CRITICAL] `composables/useCatalogFilters.ts` is the canonical source for catalog filter state, URL parsing, route query building, active chips, and filter sections. `pages/catalog.vue` must consume this composable and must not duplicate URL parsing, query building, or filter section logic.
+- [MANDATORY] `useCatalogFilters` no longer performs async API calls; it accepts optional `availableTags`/`availableCategories` refs and returns reactive state and actions. Pages fetch tags/categories separately and pass them in.
+- [MANDATORY] `useCatalogCursor.ts` remains the canonical source for catalog cursor pagination and `buildCatalogUrl`. The page awaits `loadFirstPage()` and `loadMore()` from the composable.
+
+### Design tokens
+
+- [CRITICAL] Reader theme colors are defined in `assets/css/globals.css` as semantic tokens (`--reader-light-*`, `--reader-sepia-*`, `--reader-dark-*`). Use the provided utility classes (`bg-reader-*`, `text-reader-*`, `border-reader-*`) instead of hardcoded hex values in reader pages and `ReaderSettings.vue`.
+- [MANDATORY] Use the `success` Tailwind token for positive banners (e.g., registration success) instead of hardcoded green utilities.
+
+### SSR / hydration
+
+- [CRITICAL] `useReaderSettings` exposes `isReady` which becomes `true` only after client hydration. Reader theme/font classes must render the default value on the server and initial client paint, then switch to the stored preference after `isReady` is true to avoid hydration mismatches.

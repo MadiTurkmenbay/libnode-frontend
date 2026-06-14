@@ -9,7 +9,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="grid grid-cols-[repeat(auto-fill,minmax(145px,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-4">
+  <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
     <div
       v-for="(book, index) in books"
       :key="book.id"

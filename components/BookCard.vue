@@ -55,7 +55,7 @@ withDefaults(defineProps<{
       </CardHeader>
 
       <CardContent v-if="showDescription && book.description" class="px-2.5 pb-2.5 pt-0 sm:px-3 sm:pb-3">
-        <p class="line-clamp-3 text-[11px] leading-4 text-muted-foreground sm:text-xs sm:leading-5">
+        <p class="line-clamp-3 text-xs leading-4 text-muted-foreground sm:leading-5">
           {{ book.description }}
         </p>
       </CardContent>

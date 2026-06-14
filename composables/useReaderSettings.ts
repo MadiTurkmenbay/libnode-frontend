@@ -7,19 +7,31 @@ export interface ReaderSettingsState {
   lineHeight: number
 }
 
-const DEFAULTS: ReaderSettingsState = {
+export const DEFAULT_READER_SETTINGS: ReaderSettingsState = {
   fontSize: 18,
   theme: 'dark',
   fontFamily: 'sans',
   lineHeight: 1.6,
 }
 
+export const READER_SETTINGS_STORAGE_KEY = 'libnode-reader-settings'
+
 /**
  * Композитбл для настроек читалки.
  * Состояние автоматически синхронизируется с LocalStorage.
+ *
+ * `isReady` становится `true` только после клиентского hydration.
+ * Используйте его, чтобы SSR-рендер применял дефолтные значения,
+ * а сохранённые настройки читалки применялись уже на клиенте —
+ * это предотвращает hydration mismatch для theme/fontSize.
  */
 export function useReaderSettings() {
-  const settings = useLocalStorage<ReaderSettingsState>('libnode-reader-settings', { ...DEFAULTS })
+  const settings = useLocalStorage<ReaderSettingsState>(READER_SETTINGS_STORAGE_KEY, { ...DEFAULT_READER_SETTINGS })
+  const isReady = ref(false)
+
+  onMounted(() => {
+    isReady.value = true
+  })
 
   function increaseFontSize() {
     if (settings.value.fontSize < 32) {
@@ -33,16 +45,16 @@ export function useReaderSettings() {
     }
   }
 
+  function setLineHeight(value: number) {
+    settings.value.lineHeight = Math.max(1.0, Math.min(2.4, Math.round(value * 10) / 10))
+  }
+
   function increaseLineHeight() {
-    if (settings.value.lineHeight < 2.4) {
-      settings.value.lineHeight = Math.round((settings.value.lineHeight + 0.2) * 10) / 10
-    }
+    setLineHeight(settings.value.lineHeight + 0.2)
   }
 
   function decreaseLineHeight() {
-    if (settings.value.lineHeight > 1.0) {
-      settings.value.lineHeight = Math.round((settings.value.lineHeight - 0.2) * 10) / 10
-    }
+    setLineHeight(settings.value.lineHeight - 0.2)
   }
 
   function setTheme(theme: ReaderSettingsState['theme']) {
@@ -54,15 +66,17 @@ export function useReaderSettings() {
   }
 
   function resetDefaults() {
-    settings.value = { ...DEFAULTS }
+    settings.value = { ...DEFAULT_READER_SETTINGS }
   }
 
   return {
     settings,
+    isReady,
     increaseFontSize,
     decreaseFontSize,
     increaseLineHeight,
     decreaseLineHeight,
+    setLineHeight,
     setTheme,
     setFontFamily,
     resetDefaults,

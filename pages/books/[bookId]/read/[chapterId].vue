@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, ChevronLeft, ChevronRight, Menu, Heart } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
 import type { ChapterDetailDto, SetProgressDto } from '~/types'
 import { useReaderSettings } from '~/composables/useReaderSettings'
 
@@ -10,7 +11,12 @@ const currentChapterId = computed(() => route.params.chapterId as string)
 const { toast } = useToast()
 const { isAuthenticated } = useAuth()
 
-const { settings } = useReaderSettings()
+const { settings, isReady } = useReaderSettings()
+
+const activeTheme = computed(() => isReady.value ? settings.value.theme : 'dark')
+const activeFontSize = computed(() => isReady.value ? settings.value.fontSize : 18)
+const activeLineHeight = computed(() => isReady.value ? settings.value.lineHeight : 1.6)
+const activeFontFamily = computed(() => isReady.value ? settings.value.fontFamily : 'sans')
 
 const { data: chapter, pending: chapterPending, error: chapterError } = await useApiFetch<ChapterDetailDto>(
   () => `/api/chapters/${currentChapterId.value}`,
@@ -20,34 +26,34 @@ const prevChapterId = computed(() => chapter.value?.previousChapterId ?? null)
 const nextChapterId = computed(() => chapter.value?.nextChapterId ?? null)
 
 const readerStyle = computed(() => ({
-  fontSize: `${settings.value.fontSize}px`,
-  lineHeight: `${settings.value.lineHeight}`,
+  fontSize: `${activeFontSize.value}px`,
+  lineHeight: `${activeLineHeight.value}`,
 }))
 
 const readerClasses = computed(() => {
   const classes: string[] = []
-  classes.push(settings.value.fontFamily === 'serif' ? 'font-serif' : 'font-sans')
+  classes.push(activeFontFamily.value === 'serif' ? 'font-serif' : 'font-sans')
   return classes.join(' ')
 })
 
 const themeClasses = computed(() => {
-  switch (settings.value.theme) {
+  switch (activeTheme.value) {
     case 'light':
-      return 'bg-white text-gray-900'
+      return 'bg-reader-light text-reader-light'
     case 'sepia':
-      return 'bg-[#f4ecd8] text-[#5b4636]'
+      return 'bg-reader-sepia text-reader-sepia'
     case 'dark':
     default:
-      return 'bg-background text-foreground'
+      return 'bg-reader-dark text-reader-dark'
   }
 })
 
 const headerFooterTheme = computed(() => {
-  switch (settings.value.theme) {
+  switch (activeTheme.value) {
     case 'light':
-      return 'bg-white/95 text-gray-900 border-gray-200'
+      return 'bg-reader-light/95 text-reader-light border-reader-light'
     case 'sepia':
-      return 'bg-[#f4ecd8]/95 text-[#5b4636] border-[#d4c9a8]'
+      return 'bg-reader-sepia/95 text-reader-sepia border-reader-sepia'
     case 'dark':
     default:
       return 'bg-background/95 text-foreground'
@@ -155,14 +161,18 @@ async function likeChapter() {
         <div class="h-4 w-11/12 rounded bg-muted"></div>
         <div class="h-4 w-full rounded bg-muted"></div>
         <div class="h-4 w-5/6 rounded bg-muted"></div>
+        <div class="h-4 w-4/5 rounded bg-muted"></div>
+        <div class="h-4 w-full rounded bg-muted"></div>
       </div>
 
       <div v-else-if="chapterError || !chapter" class="py-20 text-center">
-        <h2 class="text-2xl font-bold mb-2">Глава не найдена</h2>
+        <h1 class="text-2xl font-bold mb-2">Глава не найдена</h1>
         <p class="opacity-60 mb-6">Возможно, она была удалена или ссылка устарела.</p>
-        <NuxtLink :to="`/books/${currentBookId}`" class="rounded-lg bg-secondary px-4 py-2 font-medium">
-          Вернуться к книге
-        </NuxtLink>
+        <Button as-child>
+          <NuxtLink :to="`/books/${currentBookId}`">
+            Вернуться к книге
+          </NuxtLink>
+        </Button>
       </div>
 
       <article v-else class="mx-auto">
@@ -187,23 +197,23 @@ async function likeChapter() {
           <button
             @click="likeChapter"
             class="group relative inline-flex h-14 items-center justify-center gap-3 overflow-hidden rounded-full px-8 text-base font-medium shadow-sm transition-all hover:shadow-md disabled:opacity-90 disabled:cursor-default"
-            :class="chapter.isLikedByCurrentUser ? 'text-rose-500 bg-rose-500/10 border border-rose-500/20' : 'bg-primary/5 border border-primary/10 text-foreground hover:bg-primary/10 hover:scale-105 active:scale-95'"
+            :class="chapter.isLikedByCurrentUser ? 'text-destructive bg-destructive/10 border border-destructive/20' : 'bg-primary/5 border border-primary/10 text-foreground hover:bg-primary/10 hover:scale-105 active:scale-95'"
             :disabled="!isAuthenticated || chapter.isLikedByCurrentUser || isLiking"
           >
             <div
               v-if="chapter.isLikedByCurrentUser"
-              class="absolute inset-0 bg-rose-500/5 pointer-events-none"
+              class="absolute inset-0 bg-destructive/5 pointer-events-none"
             ></div>
             <Heart
               class="relative z-10 h-6 w-6 transition-transform"
-              :class="{ 'fill-current text-rose-500': chapter.isLikedByCurrentUser, 'group-hover:scale-110': !chapter.isLikedByCurrentUser }"
+              :class="{ 'fill-current text-destructive': chapter.isLikedByCurrentUser, 'group-hover:scale-110': !chapter.isLikedByCurrentUser }"
             />
             <span class="relative z-10 font-bold text-lg">{{ chapter.likesCount }}</span>
           </button>
           <p v-if="!isAuthenticated" class="mt-4 text-xs text-muted-foreground opacity-70">
             Войдите, чтобы оценивать главы
           </p>
-          <p v-else-if="chapter.isLikedByCurrentUser" class="mt-4 text-xs font-medium text-rose-500/70">
+          <p v-else-if="chapter.isLikedByCurrentUser" class="mt-4 text-xs font-medium text-destructive/70">
             Вам понравилась эта глава
           </p>
         </div>
