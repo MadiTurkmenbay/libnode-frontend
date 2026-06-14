@@ -54,6 +54,11 @@ function emitCollectionStatus(value: BookCollectionStatusDto | null) {
   emit('collection-changed', value)
 }
 
+async function refreshStatus() {
+  const status = await executeApiRequest<BookCollectionStatusDto>(`/api/books/${props.bookId}/collection-status`)
+  emitCollectionStatus(status)
+}
+
 async function moveBookToCollection(targetCollection: CollectionDto) {
   if (isSubmitting.value) {
     return
@@ -66,20 +71,13 @@ async function moveBookToCollection(targetCollection: CollectionDto) {
   try {
     if (isActiveCollection) {
       await collectionsStore.removeBookFromCollection(targetCollection.id, props.bookId)
-      emitCollectionStatus(null)
+      await refreshStatus()
       toast('Книга удалена из закладок')
       return
     }
 
-    if (currentCollectionId.value) {
-      await collectionsStore.removeBookFromCollection(currentCollectionId.value, props.bookId)
-    }
-
     await collectionsStore.addBookToCollection(targetCollection.id, props.bookId)
-    emitCollectionStatus({
-      collectionId: targetCollection.id,
-      collectionName: targetCollection.name,
-    })
+    await refreshStatus()
     toast(`Книга перемещена в "${targetCollection.name}"`)
   }
   catch {
@@ -109,15 +107,8 @@ async function createCollection() {
       return
     }
 
-    if (currentCollectionId.value) {
-      await collectionsStore.removeBookFromCollection(currentCollectionId.value, props.bookId)
-    }
-
     await collectionsStore.addBookToCollection(createdCollection.id, props.bookId)
-    emitCollectionStatus({
-      collectionId: createdCollection.id,
-      collectionName: createdCollection.name,
-    })
+    await refreshStatus()
     newCollectionName.value = ''
 
     toast(`Папка "${createdCollection.name}" создана`)
