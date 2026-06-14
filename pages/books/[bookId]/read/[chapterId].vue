@@ -38,13 +38,19 @@ const readerClasses = computed(() => {
   return classes.join(' ')
 })
 
-const paragraphs = computed(() => {
-  if (!chapter.value) return []
-  return chapter.value.content.split('\n').map((text, index) => ({
-    id: `${chapter.value!.id}-${index}`,
-    text,
-    isEmpty: text.trim() === '',
-  }))
+const readerContentHtml = computed(() => {
+  if (!chapter.value) return ''
+  return chapter.value.content.split('\n').map((paragraph) => {
+    if (!paragraph.trim()) {
+      return '<div class="h-4"></div>'
+    }
+    const escaped = paragraph
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+    return `<p class="indent-6 mb-4 text-justify">${escaped}</p>`
+  }).join('')
 })
 
 const themeClasses = computed(() => {
@@ -280,17 +286,8 @@ async function likeChapter() {
           :class="readerClasses"
           :style="readerStyle"
           @mouseup="handleMouseUp"
-        >
-          <component
-            :is="item.isEmpty ? 'div' : 'p'"
-            v-for="item in paragraphs"
-            :key="item.id"
-            class="text-justify"
-            :class="item.isEmpty ? 'h-4' : 'indent-6 mb-4'"
-          >
-            <template v-if="!item.isEmpty">{{ item.text }}</template>
-          </component>
-        </div>
+          v-html="readerContentHtml"
+        ></div>
 
         <div
           v-if="showQuotePopup"
