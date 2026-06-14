@@ -38,16 +38,13 @@ const readerClasses = computed(() => {
   return classes.join(' ')
 })
 
-const containerWidthClass = computed(() => {
-  switch (activeContainerWidth.value) {
-    case 'narrow':
-      return 'max-w-2xl'
-    case 'wide':
-      return 'max-w-5xl'
-    case 'medium':
-    default:
-      return 'max-w-3xl'
-  }
+const paragraphs = computed(() => {
+  if (!chapter.value) return []
+  return chapter.value.content.split('\n').map((text, index) => ({
+    id: `${chapter.value!.id}-${index}`,
+    text,
+    isEmpty: text.trim() === '',
+  }))
 })
 
 const themeClasses = computed(() => {
@@ -284,12 +281,15 @@ async function likeChapter() {
           :style="readerStyle"
           @mouseup="handleMouseUp"
         >
-          <template v-for="(paragraph, index) in chapter.content.split('\n')" :key="index">
-            <p v-if="paragraph.trim()" class="indent-6 mb-4 text-justify">
-              {{ paragraph }}
-            </p>
-            <div v-else-if="paragraph === ''" class="h-4"></div>
-          </template>
+          <component
+            :is="item.isEmpty ? 'div' : 'p'"
+            v-for="item in paragraphs"
+            :key="item.id"
+            class="text-justify"
+            :class="item.isEmpty ? 'h-4' : 'indent-6 mb-4'"
+          >
+            <template v-if="!item.isEmpty">{{ item.text }}</template>
+          </component>
         </div>
 
         <div
