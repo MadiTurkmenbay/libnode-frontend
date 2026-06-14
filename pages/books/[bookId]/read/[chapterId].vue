@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, ChevronLeft, ChevronRight, Menu, Heart } from 'lucide-vue-next'
-import type { ChapterDetailDto, ChapterListDto, CursorPagedResult, SetProgressDto } from '~/types'
+import type { ChapterDetailDto, SetProgressDto } from '~/types'
 import { useReaderSettings } from '~/composables/useReaderSettings'
 
 const route = useRoute()
@@ -16,35 +16,8 @@ const { data: chapter, pending: chapterPending, error: chapterError } = await us
   () => `/api/chapters/${currentChapterId.value}`,
 )
 
-const { data: chaptersResult } = await useApiFetch<CursorPagedResult<ChapterListDto, number>>(
-  () => `/api/books/${currentBookId.value}/chapters?limit=1000&sortDesc=false`,
-)
-
-const chapters = computed(() => chaptersResult.value?.items ?? [])
-
-const currentIndex = computed(() => {
-  if (!chapters.value.length || !chapter.value) {
-    return -1
-  }
-
-  return chapters.value.findIndex(item => item.id === chapter.value?.id)
-})
-
-const prevChapter = computed(() => {
-  if (currentIndex.value > 0) {
-    return chapters.value[currentIndex.value - 1]
-  }
-
-  return null
-})
-
-const nextChapter = computed(() => {
-  if (currentIndex.value >= 0 && currentIndex.value < chapters.value.length - 1) {
-    return chapters.value[currentIndex.value + 1]
-  }
-
-  return null
-})
+const prevChapterId = computed(() => chapter.value?.previousChapterId ?? null)
+const nextChapterId = computed(() => chapter.value?.nextChapterId ?? null)
 
 const readerStyle = computed(() => ({
   fontSize: `${settings.value.fontSize}px`,
@@ -244,8 +217,8 @@ async function likeChapter() {
     >
       <div class="container flex max-w-4xl justify-between items-center px-2 md:px-4">
         <NuxtLink
-          v-if="prevChapter"
-          :to="`/books/${currentBookId}/read/${prevChapter.id}`"
+          v-if="prevChapterId"
+          :to="`/books/${currentBookId}/read/${prevChapterId}`"
           class="inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors border opacity-80 hover:opacity-100 sm:px-6"
         >
           <ChevronLeft class="h-4 w-4" />
@@ -268,8 +241,8 @@ async function likeChapter() {
         </NuxtLink>
 
         <NuxtLink
-          v-if="nextChapter"
-          :to="`/books/${currentBookId}/read/${nextChapter.id}`"
+          v-if="nextChapterId"
+          :to="`/books/${currentBookId}/read/${nextChapterId}`"
           class="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 sm:px-6"
         >
           <span class="hidden sm:inline">Следующая</span>

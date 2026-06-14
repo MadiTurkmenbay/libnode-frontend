@@ -19,7 +19,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: 'http://localhost:5000',
-      // В Docker: переопределяется через NUXT_PUBLIC_API_BASE_CLIENT
+      // В Docker/production: переопределяется через NUXT_PUBLIC_API_BASE_CLIENT
       apiBaseClient: '',
     },
   },

@@ -19,9 +19,9 @@ import {
   type BookCatalogFilters,
   type BookDto,
   type CategoryDto,
-  type PagedResult,
   type TagDto,
 } from '~/types'
+import { useCatalogCursor } from '~/composables/useCatalogCursor'
 
 useHead({
   title: 'LibNode — Каталог',
@@ -30,7 +30,6 @@ useHead({
   ],
 })
 
-const PAGE_SIZE = 20
 const bookTypeOptions = [
   BookType.Japan,
   BookType.Korea,
@@ -56,10 +55,6 @@ const translationStatusOptions = [
 const route = useRoute()
 const router = useRouter()
 
-const books = ref<BookDto[]>([])
-const totalCount = ref(0)
-const currentPage = ref(1)
-const isLoadingMore = ref(false)
 const loadTrigger = ref<HTMLElement | null>(null)
 const sortDropdownOpen = ref(false)
 const mobileFiltersOpen = ref(false)
@@ -230,49 +225,10 @@ function buildCurrentFilters(): BookCatalogFilters {
   }
 }
 
-// ── API URL Builder ────────────────────────────────────
-
-function buildBooksUrl(filters: BookCatalogFilters, page: number) {
-  const params = new URLSearchParams()
-  params.set('limit', String(PAGE_SIZE))
-  params.set('page', String(page))
-
-  params.set('sortBy', filters.sortBy)
-  params.set('sortDirection', filters.sortDirection)
-
-  const trimmedSearch = filters.search.trim()
-  if (trimmedSearch) {
-    params.set('search', trimmedSearch)
-  }
-
-  for (const type of [...filters.types].sort((left, right) => left - right)) {
-    params.append('types', String(type))
-  }
-
-  for (const status of [...filters.originalStatuses].sort((left, right) => left - right)) {
-    params.append('originalStatuses', String(status))
-  }
-
-  for (const status of [...filters.translationStatuses].sort((left, right) => left - right)) {
-    params.append('translationStatuses', String(status))
-  }
-
-  for (const tag of [...filters.tags].sort((left, right) => left.localeCompare(right))) {
-    params.append('tags', tag)
-  }
-
-  for (const category of [...filters.categories].sort((left, right) => left.localeCompare(right))) {
-    params.append('categories', category)
-  }
-
-  return `/api/books?${params.toString()}`
-}
-
 // ── Computed ───────────────────────────────────────────
 
 const appliedFilters = computed(() => parseRouteFilters())
 const appliedFiltersSignature = computed(() => getQuerySignature(buildRouteQuery(appliedFilters.value)))
-const catalogUrl = computed(() => buildBooksUrl(appliedFilters.value, 1))
 const hasActiveFilters = computed(() => {
   const f = appliedFilters.value
   return f.search.trim() !== ''
@@ -282,13 +238,24 @@ const hasActiveFilters = computed(() => {
     || f.tags.length > 0
     || f.categories.length > 0
 })
-const hasMorePages = computed(() => books.value.length < totalCount.value)
 const currentSortLabel = computed(() => {
   const opt = catalogSortOptions.find(
     o => o.sortBy === appliedFilters.value.sortBy && o.sortDirection === appliedFilters.value.sortDirection,
   )
   return opt?.label ?? 'Сортировка'
 })
+
+// ── Cursor-based catalog data ──────────────────────────
+
+const {
+  books,
+  hasMore: hasMorePages,
+  pending,
+  error,
+  isLoadingMore,
+  loadFirstPage,
+  loadMore,
+} = useCatalogCursor(appliedFilters)
 
 syncUiState(appliedFilters.value)
 
@@ -393,82 +360,11 @@ async function clearFilters() {
 
 // ── Data Fetching ─────────────────────────────────────
 
-const { data: pageData, pending, error, execute: fetchCatalog } = await useApiFetch<PagedResult<BookDto>>(
-  () => catalogUrl.value,
-  {
-    immediate: false,
-    watch: false,
-  },
-)
-
-let latestCatalogRequest = 0
-
-function applyPageData(page: PagedResult<BookDto> | null) {
-  books.value = page?.items ?? []
-  totalCount.value = page?.totalCount ?? 0
-  currentPage.value = page?.pageNumber ?? 1
-}
-
-async function loadFirstPage() {
-  const requestId = ++latestCatalogRequest
-
-  books.value = []
-  totalCount.value = 0
-  currentPage.value = 1
-  isLoadingMore.value = false
-
-  await fetchCatalog()
-
-  if (requestId !== latestCatalogRequest || error.value) {
-    return
-  }
-
-  applyPageData(pageData.value)
-}
-
 await loadFirstPage()
 
-watch(catalogUrl, async (current, previous) => {
-  if (previous === undefined || current === previous) {
-    return
-  }
-
+watch(appliedFiltersSignature, async () => {
   await loadFirstPage()
 })
-
-async function loadMore() {
-  if (!hasMorePages.value || isLoadingMore.value || pending.value) {
-    return
-  }
-
-  const requestId = latestCatalogRequest
-  const nextPage = currentPage.value + 1
-  const url = buildBooksUrl(appliedFilters.value, nextPage)
-  isLoadingMore.value = true
-
-  try {
-    const data = await executeApiRequest<PagedResult<BookDto>>(
-      url,
-      {
-        key: `catalog:page:${nextPage}:${appliedFiltersSignature.value}`,
-      },
-    )
-
-    if (!data || requestId !== latestCatalogRequest) {
-      return
-    }
-
-    books.value.push(...data.items)
-    currentPage.value = data.pageNumber
-    totalCount.value = data.totalCount
-  }
-  catch (loadMoreError) {
-    console.error('Ошибка загрузки книг:', loadMoreError)
-  }
-  finally {
-    isLoadingMore.value = false
-  }
-}
 
 useIntersectionObserver(
   loadTrigger,
@@ -562,7 +458,7 @@ const filterSections = computed(() => {
 
           <div class="text-sm text-muted-foreground">
             <template v-if="books.length > 0">
-              {{ books.length }} из {{ totalCount }} произведений
+              {{ books.length }} произведений
             </template>
             <template v-else-if="pending">
               Обновляем каталог...

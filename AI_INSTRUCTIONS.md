@@ -80,8 +80,10 @@
 
 ### Cursor Pagination — стандарт UI-списков
 
-- [CRITICAL] Каталог и списки глав должны потреблять cursor-based backend API с контрактом `CursorPagedResult<T, TCursor>`.
-- [MANDATORY] Бесконечная подгрузка строится вокруг `items`, `nextCursor`, `hasMore` и `IntersectionObserver`.
+- [CRITICAL] Списки глав потребляют cursor-based backend API с контрактом `CursorPagedResult<T, TCursor>`.
+- [CRITICAL] Каталог книг потребляет `CursorStringPagedResult<T>` с курсором `sortValue|id`. Каталоговая пагинация основана только на `items`, `nextCursor`, `hasMore`.
+- [MANDATORY] Бесконечная подгрузка строится вокруг `items`, `nextCursor`, `hasMore` и `IntersectionObserver`. Курсор хранится в component-local state, не в URL, и сбрасывается при изменении фильтров или сортировки.
+- [CRITICAL] Каталоговая загрузка и состояние курсора инкапсулированы в `composables/useCatalogCursor.ts`. Страница `catalog.vue` использует этот composable и не дублирует логику URL/cursor/пагинации.
 - [FORBIDDEN] Возвращаться к `pageNumber/pageSize` в новых экранах только потому, что "так проще".
 - [MANDATORY] Для ручных пагинируемых запросов задавай осмысленный `key`, чтобы не плодить коллизии и случайное повторное использование fetch-state.
 
@@ -93,6 +95,12 @@
 - [MANDATORY] Любое изменение DTO на backend требует немедленного изменения frontend типов и мест потребления.
 - [FORBIDDEN] "Временно" обходить несоответствие типов через `any`, ручные касты или локальные интерфейсы-дубликаты.
 
+## Читалка и навигация по главам
+
+- [CRITICAL] `ChapterDetailDto` содержит `previousChapterId` и `nextChapterId`, вычисленные на backend по `ChapterNumber`. Страница читалки использует эти поля для навигации, не загружая весь список глав.
+- [FORBIDDEN] Загружать `limit=1000` или иной большой список глав в читалке только ради кнопок "Предыдущая"/"Следующая".
+- [MANDATORY] Навигация по главам строится на одном запросе `/api/chapters/{id}` с последующим переходом по `previousChapterId`/`nextChapterId`.
+
 ## Что нельзя ломать
 
 - [FORBIDDEN] Удалять или обходить `useApiFetch` как единый API-слой.
@@ -100,6 +108,12 @@
 - [FORBIDDEN] Дублировать коллекции одновременно в Pinia и в локальных массивах разных страниц как независимые источники истины.
 - [FORBIDDEN] Подменять `useCookie` для токенов браузерными storage-механизмами.
 - [FORBIDDEN] Превращать страницы в монолиты вместо композиции из компонентов.
+
+## Тестирование
+
+- [MANDATORY] Фронтенд-юнит-тесты запускаются через `npm run test` (Vitest + happy-dom). Предпочтительно тестировать чистые функции и composable-логику, не завязанную на Nuxt runtime.
+- [MANDATORY] Тесты курсорной пагинации и reader-навигации должны покрывать формирование URL, сброс курсора при смене фильтров и обработку `previousChapterId`/`nextChapterId`.
+- [FORBIDDEN] Добавлять новые тестовые зависимости без явной необходимости; использовать уже выбранный стек (Vitest, @vue/test-utils, happy-dom).
 
 ## Обновление документации
 

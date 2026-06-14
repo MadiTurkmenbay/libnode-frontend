@@ -102,6 +102,8 @@ export interface ChapterDetailDto {
   createdAt: string
   likesCount: number
   isLikedByCurrentUser: boolean
+  previousChapterId: string | null
+  nextChapterId: string | null
 }
 
 export interface PagedResult<T> {
@@ -114,6 +116,12 @@ export interface PagedResult<T> {
 export interface CursorPagedResult<T, TCursor = string> {
   items: T[]
   nextCursor: TCursor | null
+  hasMore: boolean
+}
+
+export interface CursorStringPagedResult<T> {
+  items: T[]
+  nextCursor: string | null
   hasMore: boolean
 }
 
