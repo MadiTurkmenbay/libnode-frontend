@@ -1,7 +1,7 @@
 import type { CreateQuoteDto, QuoteDto, UpdateQuoteDto } from '~/types'
 
 export function useQuotes() {
-  const { mutate } = useApiMutation()
+  const mutate = useApiMutation()
 
   async function createQuote(dto: CreateQuoteDto): Promise<QuoteDto> {
     return mutate<QuoteDto>('/api/quotes', {
