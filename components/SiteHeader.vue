@@ -87,8 +87,10 @@ function handleLogout() {
     </div>
   </header>
 
-  <AuthModal
-    v-model:open="isAuthModalOpen"
-    :initial-tab="authModalTab"
-  />
+  <ClientOnly>
+    <AuthModal
+      v-model:open="isAuthModalOpen"
+      :initial-tab="authModalTab"
+    />
+  </ClientOnly>
 </template>

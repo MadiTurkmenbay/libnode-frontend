@@ -251,7 +251,9 @@ async function likeChapter() {
         <div class="truncate px-4 text-sm font-medium opacity-60">
           {{ chapter?.title || 'Загрузка...' }}
         </div>
-        <ReaderSettings />
+        <ClientOnly>
+          <ReaderSettings />
+        </ClientOnly>
       </div>
     </header>
 
