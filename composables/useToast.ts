@@ -1,20 +1,24 @@
 import { toast as sonnerToast } from 'vue-sonner'
 
 export function useToast() {
-  function toast(options: { title?: string; description?: string; variant?: 'destructive' | 'default' | 'success', duration?: number } | string) {
+  type ToastVariant = 'destructive' | 'error' | 'default' | 'success'
+
+  function toast(options: { title?: string; description?: string; variant?: ToastVariant; duration?: number } | string) {
     if (typeof options === 'string') {
       sonnerToast.success(options)
       return
     }
 
     const message = options.title || options.description || 'Успешно'
-    
-    if (options.variant === 'destructive') {
-      sonnerToast.error(message, { description: options.description !== message ? options.description : undefined })
-    } else if (options.variant === 'default') {
-      sonnerToast(message, { description: options.description !== message ? options.description : undefined })
+    const desc = options.description !== message ? options.description : undefined
+    const variant = options.variant ?? 'success'
+
+    if (variant === 'destructive' || variant === 'error') {
+      sonnerToast.error(message, { description: desc, duration: options.duration })
+    } else if (variant === 'default') {
+      sonnerToast(message, { description: desc, duration: options.duration })
     } else {
-      sonnerToast.success(message, { description: options.description !== message ? options.description : undefined })
+      sonnerToast.success(message, { description: desc, duration: options.duration })
     }
   }
 

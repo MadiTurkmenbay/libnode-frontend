@@ -1,126 +1,101 @@
-import type { UserDto, AuthResponse, CreateUserDto, LoginDto } from '~/types'
+import type { UserDto, UserProfileDto, CreateUserDto, LoginDto } from '~/types'
 
 /**
- * Composable для управления аутентификацией.
+ * Composable для управления аутентификацией (BFF-модель).
  *
- * Хранит JWT в cookie auth_token (SSR-совместимо).
- * Cookie не является HttpOnly — создаётся клиентским кодом через Nuxt useCookie.
- * Верификация токена всегда происходит на backend при каждом API-запросе.
+ * JWT хранится ТОЛЬКО в HttpOnly cookie `auth_token`, которую ставит Nuxt-сервер
+ * (server/api/auth/login|register). Браузер не имеет доступа к токену из JS,
+ * поэтому XSS не может его украсть. Authorization-заголовок к backend добавляет
+ * серверный прокси (server/api/[...path].ts).
  *
- * Предоставляет реактивное состояние пользователя, методы login/register/logout,
- * а также вычисляемые свойства isAuthenticated и isAdmin.
+ * Клиент знает только `user` (useState 'auth_user'). На первой загрузке/SSR
+ * состояние авторизации восстанавливается запросом к `/api/me` через прокси
+ * (наличие валидной cookie). Источник истины об авторизации — backend.
  */
 export function useAuth() {
-  const token = useCookie('auth_token', {
-    maxAge: 60 * 60 * 24, // 24 часа
-    path: '/',
-    sameSite: 'lax',
-    // Secure: только на HTTPS-соединениях.
-    // На localhost HTTP dev (Docker Compose): браузер видит HTTP, Secure остаётся false.
-    // В production за TLS proxy: браузер видит HTTPS, Secure устанавливается.
-    secure: typeof window !== 'undefined'
-      ? window.location.protocol === 'https:'
-      : false,
-  })
-
   const user = useState<UserDto | null>('auth_user', () => null)
-
-  // ── Инициализация: восстановление user из JWT payload при SSR ──────────
-
-  if (token.value && !user.value) {
-    try {
-      const payload = parseJwtPayload(token.value)
-      if (payload) {
-        // Check token expiry — clear if expired and treat as unauthenticated.
-        // exp claim is Unix timestamp in seconds.
-        const isExpired = typeof payload.exp === 'number'
-          && payload.exp < Math.floor(Date.now() / 1000);
-
-        if (isExpired) {
-          token.value = null;
-        } else {
-          user.value = {
-            id: payload.sub,
-            username: payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ?? '',
-            email: payload.email ?? '',
-            role: payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? 'User',
-          }
-        }
-      }
-    } catch {
-      // Токен невалидный — сбрасываем
-      token.value = null
-      user.value = null
-    }
-  }
+  // Флаг, что первичная проверка сессии (`/api/me`) уже выполнена.
+  const initialized = useState<boolean>('auth_initialized', () => false)
 
   // ── Computed ───────────────────────────────────────────────────────────────
 
-  const isAuthenticated = computed(() => !!token.value && !!user.value)
+  const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.role === 'Admin')
 
   // ── Methods ───────────────────────────────────────────────────────────────
 
-  async function authenticate(endpoint: string, dto: LoginDto | CreateUserDto): Promise<AuthResponse> {
-    const data = await executeApiRequest<AuthResponse>(endpoint, {
-      method: 'POST',
-      body: dto,
-    })
+  /**
+   * Восстановить состояние пользователя из активной HttpOnly-сессии.
+   * Дёргает `/api/me` через прокси: если cookie валидна — backend вернёт профиль,
+   * иначе 401 → пользователь не аутентифицирован. Безопасно вызывать многократно.
+   */
+  async function fetchSession(force = false): Promise<UserDto | null> {
+    if (initialized.value && !force) return user.value
 
-    if (!data) {
-      throw new Error(`Empty authentication response for ${endpoint}`)
+    try {
+      const profile = await executeApiRequest<UserProfileDto>('/api/me', { key: 'auth-me' })
+      user.value = profile
+        ? { id: profile.id, username: profile.username, email: profile.email, role: profile.role as UserDto['role'] }
+        : null
+    } catch {
+      // 401/любая ошибка → считаем неаутентифицированным.
+      user.value = null
+    } finally {
+      initialized.value = true
     }
 
-    token.value = data.token
-    user.value = data.user
-    return data
+    return user.value
   }
 
-  async function login(dto: LoginDto): Promise<AuthResponse> {
-    return authenticate('/api/auth/login', dto)
+  async function login(dto: LoginDto): Promise<UserDto> {
+    // Прокси ставит HttpOnly cookie и возвращает только user.
+    const result = await $fetch<UserDto>('/api/auth/login', { method: 'POST', body: dto })
+    user.value = result
+    initialized.value = true
+    return result
   }
 
-  async function register(dto: CreateUserDto): Promise<AuthResponse> {
-    return authenticate('/api/auth/register', dto)
+  async function register(dto: CreateUserDto): Promise<UserDto> {
+    const result = await $fetch<UserDto>('/api/auth/register', { method: 'POST', body: dto })
+    user.value = result
+    initialized.value = true
+    return result
   }
 
-  function logout() {
-    token.value = null
+  async function logout(): Promise<void> {
+    try {
+      await $fetch('/api/auth/logout', { method: 'POST' })
+    } catch {
+      // Даже если запрос упал — локально считаем разлогиненным.
+    }
     user.value = null
-    navigateTo('/')
+    initialized.value = true
+    await navigateTo('/')
+  }
+
+  /**
+   * Сбросить состояние пользователя локально (например, при 401 от прокси).
+   * Cookie уже невалидна/истекла на стороне сервера — здесь только UX-состояние.
+   */
+  function clearAuth() {
+    user.value = null
+    initialized.value = true
+  }
+
+  /** Обновить кэшированного пользователя (после редактирования профиля). */
+  function setUser(next: UserDto) {
+    user.value = next
   }
 
   return {
-    token: readonly(token),
     user: readonly(user),
     isAuthenticated,
     isAdmin,
+    fetchSession,
     login,
     register,
     logout,
-  }
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
-/**
- * Парсинг payload из JWT токена (без верификации подписи — только для отображения).
- * Верификация происходит на сервере при каждом API-запросе.
- */
-function parseJwtPayload(token: string): Record<string, any> | null {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-
-    const payload = parts[1]
-    // Base64url → Base64 → decode
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
-    const jsonStr = typeof atob !== 'undefined'
-      ? atob(base64)
-      : Buffer.from(base64, 'base64').toString('utf-8')
-
-    return JSON.parse(jsonStr)
-  } catch {
-    return null
+    clearAuth,
+    setUser,
   }
 }

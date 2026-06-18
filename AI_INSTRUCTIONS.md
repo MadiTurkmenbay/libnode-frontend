@@ -32,8 +32,8 @@
 - [FORBIDDEN] Использовать в pages/components/stores сырой `useFetch`, `$fetch`, `fetch`, `axios` или любой другой параллельный HTTP-клиент для backend API.
 - [MANDATORY] Для SSR-совместимой первичной загрузки данных используй `await useApiFetch(...)`.
 - [MANDATORY] Для императивных мутаций, optimistic updates, `load more` и ручного запуска используй `executeApiRequest(...)`.
-- [MANDATORY] Заголовок `Authorization` формируется централизованно внутри API composable через cookie `auth_token`. Компоненты и страницы не добавляют его вручную.
-- [MANDATORY] Базовые URL API берутся только из `runtimeConfig.public.apiBase` / `apiBaseClient`. Не хардкодь новые backend-адреса по файлам.
+- [MANDATORY] Заголовок `Authorization` НЕ добавляется на клиенте. Браузер ходит на same-origin Nuxt-прокси (`/api/...`), а серверный catch-all подставляет `Authorization: Bearer` из HttpOnly cookie. На SSR `useApiFetch` форвардит Authorization сам. Компоненты и страницы Authorization не трогают.
+- [MANDATORY] Браузерные запросы идут на same-origin (пустой baseURL). Серверный базовый URL backend берётся только из `runtimeConfig.public.apiBase`. `apiBaseClient` удалён — не возвращай его.
 
 ## Управление состоянием
 
@@ -48,23 +48,24 @@
 
 ## SSR, auth и cookies
 
-### useCookie — стандарт для сессии
+### BFF auth — HttpOnly cookie + Nuxt-прокси (M-4)
 
-- [CRITICAL] Токен аутентификации живёт только в cookie `auth_token`, читается через `useCookie` и используется и в middleware, и в API-composable.
+- [CRITICAL] JWT хранится ТОЛЬКО в HttpOnly cookie `auth_token`, которую ставит Nuxt-сервер. Браузерный JS не имеет доступа к токену — это защита от кражи токена через XSS. Не выставляй и не читай токен через `useCookie` в клиентском коде и не возвращай сырой токен в браузер.
+- [CRITICAL] Cookie ставят/чистят только серверные роуты `server/api/auth/login.post.ts`, `register.post.ts`, `logout.post.ts` через общий хелпер `server/utils/authCookie.ts` (`setAuthCookie`/`clearAuthCookie`). Эти роуты возвращают клиенту только `user`, без `token`.
+- [CRITICAL] Браузер обращается к backend только через same-origin Nuxt-прокси (относительный `/api/...`). Catch-all `server/api/[...path].ts` читает HttpOnly cookie через `getCookie` и подставляет `Authorization: Bearer`. Никогда не добавляй Authorization на клиенте и не используй `apiBaseClient` в браузере.
+- [CRITICAL] Флаги cookie: `httpOnly: true`, `sameSite: 'lax'`, `path: '/'`, `secure` — условный на HTTPS (через `x-forwarded-proto`/протокол запроса), чтобы localhost HTTP dev не ломался.
+- [MANDATORY] `useApiFetch` для SSR ходит напрямую в backend (`apiBase`) и форвардит Authorization из `useCookie('auth_token')` (HttpOnly cookie читается на сервере). Для браузера baseURL пустой → same-origin прокси.
 - [FORBIDDEN] Хранить auth token, user session, роли или серверные доменные данные в `localStorage`/`sessionStorage`.
 - [MANDATORY] Route guard'ы строятся через `definePageMeta({ middleware: [...] })` и middleware-файлы `auth.ts` / `admin.ts`.
-- [MANDATORY] Клиентский парсинг JWT разрешён только для UX и отображения. Источником истины для реальной авторизации остаётся backend.
-- [MANDATORY] Всё, что должно корректно переживать SSR, обязано быть cookie/state-safe. Любой код, завязанный на browser-only API, должен быть осознанно изолирован.
 - [MANDATORY] Узкое исключение для `localStorage` допустимо только для чисто клиентских необязательных preferences без security и SSR-критичности, как `useReaderSettings`. Это исключение нельзя расширять на auth, кэш API, роли, bookmarks, профили и другую доменную модель.
 
-### Auth Cookie Flags and JWT UX
+### Auth state и JWT UX
 
-- [CRITICAL] The `auth_token` cookie is created client-side via Nuxt `useCookie` and is therefore **not** HttpOnly. Do not claim or document it as HttpOnly.
-- [CRITICAL] `auth_token` must use `sameSite: 'lax'` and `path: '/'` to limit cross-origin exposure and ensure the cookie is sent on all app routes.
-- [CRITICAL] The `secure` flag must be conditional on the browser seeing HTTPS (`window.location.protocol === 'https:'`). On localhost HTTP development, `secure` must be `false` so auth does not break.
-- [MANDATORY] `useAuth` and `middleware/auth.ts` may parse the JWT payload only for UX (display, expiry check, redirect). Backend remains the authorization authority on every API call.
-- [MANDATORY] Expired or malformed `auth_token` cookies must be cleared and the user must be redirected to `/login` to avoid showing a broken authenticated UI.
-- [MANDATORY] `logout()` must clear the cookie with the same `path: '/'` used at login so the token is fully removed.
+- [CRITICAL] Клиент знает только `user` в `useState('auth_user')`. Никакого клиентского парсинга JWT — токен недоступен из JS. `isAuthenticated`/`isAdmin` строятся на `user`/`user.role`.
+- [CRITICAL] Состояние авторизации восстанавливается на SSR плагином `plugins/auth-session.server.ts`, который вызывает `useAuth().fetchSession()` → запрос `/api/me` через прокси (валидность HttpOnly cookie). Не воссоздавай auth-state из токена на клиенте.
+- [MANDATORY] `middleware/auth.ts`/`admin.ts` опираются на `auth_user` (UX-граница). Backend остаётся источником истины и сам проверяет авторизацию/роль на каждом API-запросе. Не вводи signature-less доверие к роли как security-границу.
+- [MANDATORY] При 401 от прокси клиент должен сбросить пользователя (`useAuth().clearAuth()`) и редиректить на `/login`, чтобы не показывать сломанный авторизованный UI.
+- [MANDATORY] `logout()` дёргает `/api/auth/logout`, который полностью удаляет cookie с тем же `path: '/'`.
 
 ## Компоненты и UI
 

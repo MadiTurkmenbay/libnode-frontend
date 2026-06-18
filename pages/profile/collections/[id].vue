@@ -27,7 +27,7 @@ function formatDate(dateString: string): string {
 </script>
 
 <template>
-  <div class="container py-8 max-w-7xl">
+  <div class="app-container py-6 md:py-8">
     <div class="mb-8">
       <NuxtLink
         to="/profile/collections"

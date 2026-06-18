@@ -1,17 +1,39 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowUpDown, BookOpen, BookmarkCheck, BookmarkPlus, CalendarIcon, Clock, Heart, Loader2 } from 'lucide-vue-next'
+import { ArrowLeft, ArrowUpDown, BookOpen, BookmarkCheck, BookmarkPlus, CalendarIcon, Check, Clock, Heart, Loader2, List, MessageSquare, Share2, Star, UsersRound } from 'lucide-vue-next'
 import { useIntersectionObserver } from '@vueuse/core'
-import type { BookCollectionStatusDto, BookDetailDto, ChapterListDto, CursorPagedResult } from '~/types'
+import type { BookCollectionStatusDto, BookDetailDto, BookDto, BookTeamDto, ChapterListDto, CursorPagedResult } from '~/types'
 import { bookTypeLabels, originalStatusLabels, translationStatusLabels } from '~/lib/enums'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import AppState from '~/components/AppState.vue'
+import CommentSection from '~/components/comments/CommentSection.vue'
 
 const route = useRoute()
 const bookId = route.params.id as string
 
+// Похожие книги (рекомендации) — подгружаем на клиенте.
+const { similar: fetchSimilar } = useRecommendations()
+const similarBooks = ref<BookDto[]>([])
+onMounted(async () => {
+  similarBooks.value = (await fetchSimilar(bookId, 10).catch(() => [])) ?? []
+})
+
 const { toast } = useToast()
 const { isAuthenticated } = useAuth()
+
+async function shareBook() {
+  const url = window.location.href
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: book.value?.title ?? 'LibNode', url })
+    } else {
+      await navigator.clipboard.writeText(url)
+      toast('Ссылка скопирована')
+    }
+  } catch {
+    // user cancelled or clipboard unavailable
+  }
+}
 
 const { data: book, pending: bookPending, error: bookError } = await useApiFetch<BookDetailDto>(
   `/api/books/${bookId}`,
@@ -107,8 +129,22 @@ function formatDate(dateString: string): string {
 
 watchEffect(() => {
   if (book.value) {
-    useHead({
-      title: `${book.value.title} — LibNode`,
+    const b = book.value
+    useSeo({
+      title: b.title,
+      description: b.description ?? `Читать ${b.title} онлайн на LibNode. ${b.chapterCount} глав.`,
+      image: b.coverUrl ?? b.coverThumbUrl ?? undefined,
+      url: `/books/${b.id}`,
+      type: 'book',
+      jsonLd: {
+        '@context': 'https://schema.org',
+        '@type': 'Book',
+        name: b.title,
+        description: b.description ?? '',
+        numberOfPages: b.chapterCount,
+        ...(b.coverUrl ? { image: b.coverUrl } : {}),
+        ...(b.averageRating ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: b.averageRating, ratingCount: b.ratingCount } } : {}),
+      },
     })
   }
 })
@@ -186,6 +222,44 @@ const readingButtonTarget = computed(() => {
     : null
 })
 
+const activeTab = ref<'chapters' | 'comments' | 'ratings'>('chapters')
+
+// Точный набор прочитанных глав (поддерживает пропуски и непоследовательное чтение).
+const readChapterIds = ref<Set<string>>(new Set())
+function isChapterRead(chapterId: string) {
+  return readChapterIds.value.has(chapterId)
+}
+
+async function fetchReadChapters() {
+  if (!isAuthenticated.value) return
+  try {
+    const ids = await executeApiRequest<string[]>(`/api/books/${bookId}/read-chapters`, {
+      key: `book:${bookId}:read-chapters`,
+    })
+    readChapterIds.value = new Set(ids ?? [])
+  }
+  catch {
+    // Индикатор «прочитано» не критичен — тихо игнорируем.
+  }
+}
+
+const bookTeam = ref<BookTeamDto | null>(null)
+async function fetchBookTeam() {
+  try {
+    bookTeam.value = (await executeApiRequest<BookTeamDto>(`/api/books/${bookId}/team`, {
+      key: `book-team:${bookId}`,
+    })) ?? null
+  }
+  catch {
+    bookTeam.value = null
+  }
+}
+
+onMounted(() => {
+  fetchReadChapters()
+  fetchBookTeam()
+})
+
 function openCollectionsModal() {
   if (!isAuthenticated.value) {
     return
@@ -225,7 +299,7 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
 <template>
   <div class="min-h-screen bg-background">
     <header class="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-lg">
-      <div class="container flex h-14 items-center">
+      <div class="app-container flex h-14 items-center">
         <NuxtLink
           to="/"
           class="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -236,7 +310,7 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
       </div>
     </header>
 
-    <main class="container py-8">
+    <main class="app-container py-6 md:py-8">
       <AppState
         v-if="bookPending"
         variant="loading"
@@ -260,7 +334,17 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
         </template>
       </AppState>
 
-      <div v-else class="flex flex-col gap-6 md:flex-row md:gap-8 lg:gap-12">
+      <div v-else class="relative flex flex-col gap-6 md:flex-row md:gap-8 lg:gap-12">
+        <!-- Blurred cover backdrop (premium hero depth) -->
+        <div
+          v-if="book.coverUrl"
+          class="pointer-events-none absolute inset-x-0 -top-6 -z-10 h-72 overflow-hidden md:-top-8"
+          aria-hidden="true"
+        >
+          <img :src="book.coverUrl" alt="" class="h-full w-full scale-125 object-cover opacity-20 blur-2xl saturate-150" />
+          <div class="absolute inset-0 bg-gradient-to-b from-background/40 via-background/70 to-background"></div>
+        </div>
+
         <div class="mx-auto w-full max-w-72 shrink-0 space-y-4 md:w-72 md:max-w-none">
           <div class="relative aspect-[3/4] overflow-hidden rounded-xl border bg-secondary shadow-lg">
             <img
@@ -283,56 +367,60 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
               {{ bookTypeLabels[book.type] }}
             </Badge>
           </div>
+
+          <!-- Мета под обложкой: статусы, даты, теги, категории -->
+          <div class="space-y-3 text-left">
+            <NuxtLink
+              v-if="bookTeam"
+              :to="`/teams/${bookTeam.teamId}`"
+              class="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              <UsersRound class="h-3.5 w-3.5" />
+              Переводит: {{ bookTeam.teamName }}
+            </NuxtLink>
+
+            <div class="flex flex-wrap gap-2">
+              <Badge variant="outline">Тип: {{ bookTypeLabels[book.type] }}</Badge>
+              <Badge variant="outline">Оригинал: {{ originalStatusLabels[book.originalStatus] }}</Badge>
+              <Badge variant="outline">Перевод: {{ translationStatusLabels[book.translationStatus] }}</Badge>
+            </div>
+
+            <div class="space-y-1 text-xs text-muted-foreground">
+              <p class="inline-flex items-center gap-1.5">
+                <CalendarIcon class="h-3.5 w-3.5" /> Создана: {{ formatDate(book.createdAt) }}
+              </p>
+              <p class="inline-flex items-center gap-1.5">
+                <Clock class="h-3.5 w-3.5" /> Обновлена: {{ formatDate(book.updatedAt) }}
+              </p>
+            </div>
+
+            <div v-if="book.tags.length" class="flex flex-wrap gap-1.5">
+              <NuxtLink v-for="tag in book.tags" :key="tag.id" :to="`/tags/${tag.slug}`">
+                <Badge
+                  variant="secondary"
+                  class="cursor-pointer text-xs transition-colors hover:bg-primary hover:text-primary-foreground"
+                >
+                  {{ tag.name }}
+                </Badge>
+              </NuxtLink>
+            </div>
+
+            <div v-if="book.categories.length" class="flex flex-wrap gap-1.5">
+              <NuxtLink v-for="category in book.categories" :key="category.id" :to="`/categories/${category.slug}`">
+                <Badge
+                  variant="secondary"
+                  class="cursor-pointer text-xs transition-colors hover:bg-primary hover:text-primary-foreground"
+                >
+                  {{ category.name }}
+                </Badge>
+              </NuxtLink>
+            </div>
+          </div>
         </div>
 
         <div class="space-y-8">
           <div>
             <h1 class="text-2xl font-bold tracking-tight sm:text-4xl md:text-3xl">{{ book.title }}</h1>
-
-            <div class="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
-              <span class="inline-flex items-center gap-1.5">
-                <CalendarIcon class="h-4 w-4" />
-                Создана: {{ formatDate(book.createdAt) }}
-              </span>
-              <span class="inline-flex items-center gap-1.5">
-                <Clock class="h-4 w-4" />
-                Обновлена: {{ formatDate(book.updatedAt) }}
-              </span>
-            </div>
-
-            <div class="mt-3 flex flex-wrap gap-2">
-              <Badge variant="outline">
-                Тип: {{ bookTypeLabels[book.type] }}
-              </Badge>
-              <Badge variant="outline">
-                Оригинал: {{ originalStatusLabels[book.originalStatus] }}
-              </Badge>
-              <Badge variant="outline">
-                Перевод: {{ translationStatusLabels[book.translationStatus] }}
-              </Badge>
-            </div>
-
-            <div v-if="book.tags.length" class="mt-3 flex flex-wrap gap-2">
-              <Badge
-                v-for="tag in book.tags"
-                :key="tag.id"
-                variant="secondary"
-                class="cursor-pointer transition-colors hover:bg-primary hover:text-primary-foreground"
-              >
-                {{ tag.name }}
-              </Badge>
-            </div>
-
-            <div v-if="book.categories.length" class="mt-2 flex flex-wrap gap-2">
-              <Badge
-                v-for="category in book.categories"
-                :key="category.id"
-                variant="secondary"
-                class="cursor-pointer transition-colors hover:bg-primary hover:text-primary-foreground"
-              >
-                {{ category.name }}
-              </Badge>
-            </div>
 
             <div class="mt-6 flex flex-wrap gap-3">
               <NuxtLink
@@ -355,6 +443,20 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
                 <BookmarkPlus v-else class="mr-2 h-5 w-5" />
                 {{ currentCollectionName ?? 'В закладки' }}
               </button>
+
+              <ClientOnly>
+                <ShelfControl :book-id="bookId" />
+              </ClientOnly>
+
+              <button
+                type="button"
+                class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+                title="Поделиться"
+                aria-label="Поделиться"
+                @click="shareBook"
+              >
+                <Share2 class="h-5 w-5" />
+              </button>
             </div>
           </div>
 
@@ -363,22 +465,48 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
             <p class="leading-relaxed text-muted-foreground">{{ book.description }}</p>
           </div>
 
-          <section class="space-y-4" aria-labelledby="book-chapters-title">
-            <div class="flex items-center justify-between border-b pb-2">
-              <h2 id="book-chapters-title" class="text-xl font-semibold tracking-tight md:text-2xl">Главы</h2>
-              <div class="flex items-center gap-3">
-                <button
-                  class="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-                  :disabled="chaptersPending"
-                  @click="toggleSort"
-                >
-                  <ArrowUpDown class="h-3.5 w-3.5" />
-                  {{ sortDesc ? 'Сначала новые' : 'Сначала старые' }}
-                </button>
-                <span class="rounded-full bg-secondary px-3 py-1 text-sm text-muted-foreground">
-                  Всего: {{ book.chapterCount }}
-                </span>
-              </div>
+          <!-- Tabs: главы / комментарии -->
+          <div class="flex items-center gap-1 border-b border-border">
+            <button
+              type="button"
+              class="-mb-px inline-flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors"
+              :class="activeTab === 'chapters' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'"
+              @click="activeTab = 'chapters'"
+            >
+              <List class="h-4 w-4" /> Главы
+              <span class="text-xs text-muted-foreground">{{ book.chapterCount }}</span>
+            </button>
+            <button
+              type="button"
+              class="-mb-px inline-flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors"
+              :class="activeTab === 'comments' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'"
+              @click="activeTab = 'comments'"
+            >
+              <MessageSquare class="h-4 w-4" /> Комментарии
+            </button>
+            <button
+              type="button"
+              class="-mb-px inline-flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors"
+              :class="activeTab === 'ratings' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'"
+              @click="activeTab = 'ratings'"
+            >
+              <Star class="h-4 w-4" /> Оценки
+            </button>
+          </div>
+
+          <section v-show="activeTab === 'chapters'" class="space-y-4" aria-labelledby="book-chapters-title">
+            <div class="flex items-center justify-between">
+              <span class="rounded-full bg-secondary px-3 py-1 text-sm text-muted-foreground">
+                Всего: {{ book.chapterCount }}
+              </span>
+              <button
+                class="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                :disabled="chaptersPending"
+                @click="toggleSort"
+              >
+                <ArrowUpDown class="h-3.5 w-3.5" />
+                {{ sortDesc ? 'Сначала новые' : 'Сначала старые' }}
+              </button>
             </div>
 
             <div v-if="chaptersPending" class="animate-pulse py-8 text-center text-sm text-muted-foreground">
@@ -394,12 +522,31 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
                   class="group flex items-center justify-between rounded-lg border bg-card p-3 transition-all hover:border-primary/50 hover:shadow-md md:p-4"
                 >
                   <div class="flex flex-1 items-center gap-4">
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-secondary text-sm font-medium text-secondary-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                    <div
+                      class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded text-sm font-medium transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
+                      :class="isChapterRead(chapter.id)
+                        ? 'bg-success/15 text-success'
+                        : 'bg-secondary text-secondary-foreground'"
+                    >
                       {{ chapter.chapterNumber }}
+                      <span
+                        v-if="isChapterRead(chapter.id)"
+                        class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-success text-success-foreground ring-2 ring-card"
+                        title="Прочитано"
+                      >
+                        <Check class="h-2.5 w-2.5" />
+                      </span>
                     </div>
-                    <span class="line-clamp-1 font-medium transition-colors group-hover:text-primary">
+                    <span
+                      class="line-clamp-1 font-medium transition-colors group-hover:text-primary"
+                      :class="isChapterRead(chapter.id) ? 'text-muted-foreground' : ''"
+                    >
                       {{ chapter.title }}
                     </span>
+                    <span
+                      v-if="!chapter.isPublished"
+                      class="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-500"
+                    >Черновик</span>
                   </div>
 
                   <div class="mt-2 flex shrink-0 items-center gap-4 sm:mt-0">
@@ -450,7 +597,23 @@ async function likeChapter(event: Event, chapter: ChapterListDto) {
               </template>
             </AppState>
           </section>
+
+          <section v-show="activeTab === 'comments'">
+            <ClientOnly>
+              <CommentSection :book-id="book.id" title="Комментарии к тайтлу" />
+            </ClientOnly>
+          </section>
+
+          <section v-show="activeTab === 'ratings'">
+            <ClientOnly>
+              <BookRatings :book-id="bookId" />
+            </ClientOnly>
+          </section>
         </div>
+      </div>
+
+      <div v-if="similarBooks.length" class="mt-10">
+        <BookRow title="Похожее" :books="similarBooks" />
       </div>
     </main>
 

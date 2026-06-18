@@ -2,6 +2,7 @@
 import { Loader2, Library, RefreshCw, Search, SlidersHorizontal, X, ChevronDown, ArrowUpDown } from 'lucide-vue-next'
 import { useIntersectionObserver } from '@vueuse/core'
 import BookGrid from '~/components/books/BookGrid.vue'
+import BookGridSkeleton from '~/components/books/BookGridSkeleton.vue'
 import AppState from '~/components/AppState.vue'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -11,11 +12,10 @@ import { useCatalogFilters } from '~/composables/useCatalogFilters'
 import { useCatalogCursor } from '~/composables/useCatalogCursor'
 import type { CategoryDto, TagDto } from '~/types'
 
-useHead({
-  title: 'LibNode — Каталог',
-  meta: [
-    { name: 'description', content: 'Каталог ранобэ с поиском, фильтрацией и сортировкой. Найдите идеальное произведение.' },
-  ],
+useSeo({
+  title: 'Каталог ранобэ и новелл',
+  description: 'Каталог ранобэ с поиском, фильтрацией и сортировкой. Найдите идеальное произведение.',
+  type: 'website',
 })
 
 const route = useRoute()
@@ -97,7 +97,7 @@ const emptyState = computed(() => {
 
 <template>
   <div class="min-h-screen bg-background">
-    <main class="container px-3 py-4 md:px-8 md:py-8">
+    <main class="app-container py-4 md:py-8">
       <section class="mb-6 space-y-4 md:mb-8" aria-labelledby="catalog-title">
         <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
@@ -252,12 +252,7 @@ const emptyState = computed(() => {
         </aside>
 
         <div class="min-w-0 flex-1">
-          <AppState
-            v-if="pending && books.length === 0"
-            variant="loading"
-            class="py-16"
-            loading-text="Загружаем каталог..."
-          />
+          <BookGridSkeleton v-if="pending && books.length === 0" compact />
 
           <AppState
             v-else-if="error"
