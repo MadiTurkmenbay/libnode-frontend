@@ -1,0 +1,36 @@
+name: frontend-ci
+
+on:
+  push:
+    branches: [main, "auto/**", "feat/**", "fix/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install
+        run: npm install --legacy-peer-deps
+
+      - name: Prepare Nuxt
+        run: npx nuxt prepare
+
+      - name: Unit tests (vitest)
+        run: npm run test
+
+      # Typecheck currently has known pre-existing errors (tracked: roadmap W19).
+      # Informational until those are cleared, then flip to a blocking gate.
+      - name: Typecheck (informational)
+        run: npx nuxi typecheck
+        continue-on-error: true
+
+      - name: Build
+        run: npm run build
