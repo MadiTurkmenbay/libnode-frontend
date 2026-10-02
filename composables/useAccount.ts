@@ -1,8 +1,8 @@
 import type {
+  UserDto,
   UserProfileDto,
   UpdateProfileDto,
   ChangePasswordDto,
-  AuthResponse,
 } from '~/types'
 
 /**
@@ -19,12 +19,11 @@ export function useAccount() {
     return res
   }
 
-  async function updateProfile(dto: UpdateProfileDto): Promise<AuthResponse | null> {
-    const res = await executeApiRequest<AuthResponse>('/api/me', { method: 'PUT', body: dto })
+  async function updateProfile(dto: UpdateProfileDto): Promise<UserDto | null> {
+    const res = await executeApiRequest<UserDto>('/api/me', { method: 'PUT', body: dto })
     if (res) {
-      // BFF: токен ротируется backend'ом, но HttpOnly cookie здесь не обновляется
-      // (старый токен валиден до истечения). Обновляем только кэш пользователя.
-      useAuth().setUser(res.user)
+      // BFF route обновляет rotated token в HttpOnly cookie; клиент получает только user.
+      useAuth().setUser(res)
       // Обновляем кэш профиля свежими полями.
       await fetchMe(true)
     }

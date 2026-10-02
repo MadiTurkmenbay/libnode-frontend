@@ -51,7 +51,7 @@
 ### BFF auth — HttpOnly cookie + Nuxt-прокси (M-4)
 
 - [CRITICAL] JWT хранится ТОЛЬКО в HttpOnly cookie `auth_token`, которую ставит Nuxt-сервер. Браузерный JS не имеет доступа к токену — это защита от кражи токена через XSS. Не выставляй и не читай токен через `useCookie` в клиентском коде и не возвращай сырой токен в браузер.
-- [CRITICAL] Cookie ставят/чистят только серверные роуты `server/api/auth/login.post.ts`, `register.post.ts`, `logout.post.ts` через общий хелпер `server/utils/authCookie.ts` (`setAuthCookie`/`clearAuthCookie`). Эти роуты возвращают клиенту только `user`, без `token`.
+- [CRITICAL] Cookie ставят/чистят только серверные BFF-роуты через общий хелпер `server/utils/authCookie.ts` (`setAuthCookie`/`clearAuthCookie`). `login.post.ts`, `register.post.ts` и `me.put.ts` могут получить `{ token, user }` от backend, но клиенту возвращают только `user`; `me.get.ts` явно проксирует профиль, потому что concrete Nitro route `/api/me` перекрывает catch-all; `logout.post.ts` удаляет cookie.
 - [CRITICAL] Браузер обращается к backend только через same-origin Nuxt-прокси (относительный `/api/...`). Catch-all `server/api/[...path].ts` читает HttpOnly cookie через `getCookie` и подставляет `Authorization: Bearer`. Никогда не добавляй Authorization на клиенте и не используй `apiBaseClient` в браузере.
 - [CRITICAL] Флаги cookie: `httpOnly: true`, `sameSite: 'lax'`, `path: '/'`, `secure` — условный на HTTPS (через `x-forwarded-proto`/протокол запроса), чтобы localhost HTTP dev не ломался.
 - [MANDATORY] `useApiFetch` для SSR ходит напрямую в backend (`apiBase`) и форвардит Authorization из `useCookie('auth_token')` (HttpOnly cookie читается на сервере). Для браузера baseURL пустой → same-origin прокси.
@@ -65,6 +65,7 @@
 - [CRITICAL] Состояние авторизации восстанавливается на SSR плагином `plugins/auth-session.server.ts`, который вызывает `useAuth().fetchSession()` → запрос `/api/me` через прокси (валидность HttpOnly cookie). Не воссоздавай auth-state из токена на клиенте.
 - [MANDATORY] `middleware/auth.ts`/`admin.ts` опираются на `auth_user` (UX-граница). Backend остаётся источником истины и сам проверяет авторизацию/роль на каждом API-запросе. Не вводи signature-less доверие к роли как security-границу.
 - [MANDATORY] При 401 от прокси клиент должен сбросить пользователя (`useAuth().clearAuth()`) и редиректить на `/login`, чтобы не показывать сломанный авторизованный UI.
+- [MANDATORY] Исключение допускается только для фоновых best-effort запросов, которые не являются источником auth-state (например, notification polling fallback): они могут передавать `handleUnauthorized: false` и обязаны локально игнорировать ошибку, не меняя session state.
 - [MANDATORY] `logout()` дёргает `/api/auth/logout`, который полностью удаляет cookie с тем же `path: '/'`.
 
 ## Компоненты и UI

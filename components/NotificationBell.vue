@@ -6,6 +6,7 @@ import type { NotificationDto } from '~/types'
 import { formatRelativeTime } from '~/lib/formatters'
 
 const { unreadCount, list, refreshUnread, markRead, markAllRead } = useNotifications()
+const { isAuthenticated } = useAuth()
 
 const items = ref<NotificationDto[]>([])
 const loading = ref(false)
@@ -23,6 +24,7 @@ const iconFor = (t: NotificationType) => {
 }
 
 async function loadList() {
+  if (!isAuthenticated.value) return
   loading.value = true
   try {
     const res = await list(null)
@@ -55,14 +57,28 @@ async function readAll() {
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let eventSource: EventSource | null = null
 let sseFailed = false
+let streamRunId = 0
+
+function stopNotifications() {
+  streamRunId += 1
+  eventSource?.close()
+  eventSource = null
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+  sseFailed = false
+}
 
 function startSse() {
+  if (!isAuthenticated.value || eventSource) return
+
   if (typeof EventSource === 'undefined') {
     sseFailed = true
     return
   }
   try {
-    eventSource = new EventSource('/api/notifications/stream')
+    eventSource = new EventSource('/api/notifications/stream', { withCredentials: true })
     eventSource.addEventListener('count', (ev: MessageEvent) => {
       try {
         const data = JSON.parse(ev.data)
@@ -74,7 +90,7 @@ function startSse() {
     eventSource.onerror = () => {
       eventSource?.close()
       eventSource = null
-      if (!sseFailed) {
+      if (!sseFailed && isAuthenticated.value) {
         sseFailed = true
         startPolling()
       }
@@ -85,23 +101,48 @@ function startSse() {
 }
 
 function startPolling() {
+  if (!isAuthenticated.value) return
+
   if (pollTimer) clearInterval(pollTimer)
   refreshUnread()
   pollTimer = setInterval(() => {
+    if (!isAuthenticated.value) {
+      stopNotifications()
+      return
+    }
     refreshUnread()
     if (open.value) loadList()
   }, 45000)
 }
 
-onMounted(() => {
+async function startNotifications() {
+  const runId = ++streamRunId
+
+  if (!isAuthenticated.value) return
+
+  // Wait one UI tick after login so the browser has committed Set-Cookie.
+  await nextTick()
+  if (!isAuthenticated.value || runId !== streamRunId) return
+
   refreshUnread()
   startSse()
   if (sseFailed) startPolling()
+}
+
+onMounted(() => {
+  if (isAuthenticated.value) startNotifications()
+})
+
+watch(isAuthenticated, (authenticated) => {
+  if (authenticated) {
+    startNotifications()
+  } else {
+    stopNotifications()
+  }
 })
 
 onBeforeUnmount(() => {
-  eventSource?.close()
-  if (pollTimer) clearInterval(pollTimer)
+  stopNotifications()
 })
 </script>
 

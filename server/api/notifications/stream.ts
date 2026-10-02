@@ -2,7 +2,7 @@ import { getCookie, setResponseHeaders } from 'h3'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const token = getCookie(event, 'auth_token')
+  const token = getCookie(event, AUTH_COOKIE_NAME)
 
   if (!token) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
@@ -20,7 +20,6 @@ export default defineEventHandler(async (event) => {
   const upstream = await fetch(target.toString(), {
     headers: {
       Authorization: `Bearer ${token}`,
-      Host: 'api',
     },
   })
 

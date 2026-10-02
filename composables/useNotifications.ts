@@ -19,6 +19,7 @@ export function useNotifications() {
     try {
       const res = await executeApiRequest<{ count: number }>('/api/notifications/unread-count', {
         key: 'notif-unread-count',
+        handleUnauthorized: false,
       })
       unreadCount.value = res?.count ?? 0
     }

@@ -347,6 +347,8 @@ export enum NotificationType {
   RequestRejected = 4,
   NewChapter = 5,
   Mention = 6,
+  LevelUp = 7,
+  Achievement = 8,
 }
 
 export interface BookTeamDto {

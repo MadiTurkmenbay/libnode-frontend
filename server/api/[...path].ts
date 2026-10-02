@@ -11,9 +11,9 @@ import { getCookie, getRequestURL, proxyRequest } from 'h3'
  * Проксируются все методы (GET/POST/PUT/PATCH/DELETE) с method/query/body/headers.
  * Статус-коды и тела ошибок (ProblemDetails) пробрасываются как есть.
  *
- * Выделенные маршруты `/api/auth/login|register|logout` и
- * `/api/notifications/stream` имеют приоритет над этим catch-all в роутере Nitro
- * и сюда не попадают.
+ * Выделенные маршруты `/api/auth/login|register|logout`, `/api/me`,
+ * `/api/notifications/stream` имеют приоритет над этим catch-all в роутере
+ * Nitro и сюда не попадают.
  */
 export default defineEventHandler((event) => {
   const config = useRuntimeConfig()

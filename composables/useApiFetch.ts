@@ -1,5 +1,9 @@
 import type { UseFetchOptions } from 'nuxt/app'
 
+type ApiFetchOptions<T> = UseFetchOptions<T> & {
+  handleUnauthorized?: boolean
+}
+
 let requestKeySeed = 0
 
 function nextRequestKey(prefix: string) {
@@ -19,11 +23,12 @@ function nextRequestKey(prefix: string) {
  * запроса браузера здесь не передаётся автоматически, поэтому для SSR мы читаем
  * `auth_token` из входящих заголовков и форвардим Authorization вручную.
  */
-export function useApiFetch<T>(url: string | (() => string), options: UseFetchOptions<T> = {}) {
+export function useApiFetch<T>(url: string | (() => string), options: ApiFetchOptions<T> = {}) {
   const config = useRuntimeConfig()
+  const { handleUnauthorized = true, ...fetchOptions } = options
 
   const headers: Record<string, string> = {
-    ...(options.headers as Record<string, string> ?? {}),
+    ...(fetchOptions.headers as Record<string, string> ?? {}),
   }
 
   // На клиенте baseURL пустой → запрос идёт на same-origin Nuxt-прокси.
@@ -40,12 +45,12 @@ export function useApiFetch<T>(url: string | (() => string), options: UseFetchOp
 
   return useFetch(url, {
     baseURL,
-    ...options,
+    ...fetchOptions,
     headers,
     onResponseError(ctx) {
       // 401 от прокси/backend → сессия невалидна. Сбрасываем пользователя и
       // (на клиенте) уводим на /login, чтобы не показывать сломанный auth-UI.
-      if (ctx.response?.status === 401 && import.meta.client) {
+      if (handleUnauthorized && ctx.response?.status === 401 && import.meta.client) {
         useAuth().clearAuth()
         const route = useRoute()
         if (route.path !== '/login') {
@@ -53,7 +58,7 @@ export function useApiFetch<T>(url: string | (() => string), options: UseFetchOp
         }
       }
       // Пробрасываем пользовательский onResponseError, если он был.
-      const userHandler = (options as UseFetchOptions<T>).onResponseError
+      const userHandler = fetchOptions.onResponseError
       if (typeof userHandler === 'function') {
         return userHandler(ctx)
       }
@@ -63,7 +68,7 @@ export function useApiFetch<T>(url: string | (() => string), options: UseFetchOp
 
 export async function executeApiRequest<T>(
   url: string | (() => string),
-  options: UseFetchOptions<T> = {},
+  options: ApiFetchOptions<T> = {},
 ) {
   const nuxtApp = useNuxtApp()
 

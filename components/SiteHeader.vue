@@ -23,8 +23,15 @@ const avatarInitials = computed(() =>
   (me.value?.username || user.value?.username || '?').slice(0, 2).toUpperCase(),
 )
 
-function loadAccount() {
+let loadAccountRunId = 0
+
+async function loadAccount() {
+  const runId = ++loadAccountRunId
   if (!isAuthenticated.value) return
+
+  await nextTick()
+  if (!isAuthenticated.value || runId !== loadAccountRunId) return
+
   fetchMe().catch(() => {})
   fetchStats().catch(() => {})
 }
