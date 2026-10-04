@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { apiErrorMessage } from '~/lib/apiErrors'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -55,9 +56,8 @@ async function onSubmit() {
     } else {
       navigateTo('/')
     }
-  } catch (e: any) {
-    const message = e?.response?._data?.error
-      ?? 'Не удалось создать аккаунт. Возможно, email или имя уже заняты.'
+  } catch (e: unknown) {
+    const message = apiErrorMessage(e, 'Не удалось создать аккаунт. Возможно, email или имя уже заняты.')
     errorMessage.value = message
     emit('error', message)
   } finally {

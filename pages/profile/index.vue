@@ -31,6 +31,7 @@ import {
 import { NotificationType, ShelfStatus } from '~/types'
 import type { NotificationDto, CollectionDto, ShelfItemDto, NotificationPrefsDto } from '~/types'
 import { formatRelativeTime, formatLongDate } from '~/lib/formatters'
+import { apiErrorMessage } from '~/lib/apiErrors'
 
 definePageMeta({ middleware: ['auth'] })
 useHead({ title: 'Личный кабинет — LibNode' })
@@ -254,8 +255,8 @@ async function saveProfile() {
     })
     toast('Профиль обновлён')
   }
-  catch (e: any) {
-    toast({ description: e?.data?.error || 'Не удалось сохранить профиль', variant: 'destructive' })
+  catch (e: unknown) {
+    toast({ description: apiErrorMessage(e, 'Не удалось сохранить профиль'), variant: 'destructive' })
   }
   finally {
     savingProfile.value = false

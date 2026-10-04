@@ -66,6 +66,7 @@
 - [MANDATORY] `middleware/auth.ts`/`admin.ts` опираются на `auth_user` (UX-граница). Backend остаётся источником истины и сам проверяет авторизацию/роль на каждом API-запросе. Не вводи signature-less доверие к роли как security-границу.
 - [MANDATORY] При 401 от прокси клиент должен сбросить пользователя (`useAuth().clearAuth()`) и редиректить на `/login`, чтобы не показывать сломанный авторизованный UI.
 - [MANDATORY] Исключение допускается только для фоновых best-effort запросов, которые не являются источником auth-state (например, notification polling fallback): они могут передавать `handleUnauthorized: false` и обязаны локально игнорировать ошибку, не меняя session state.
+- [MANDATORY] Auth/profile business feedback uses `lib/apiErrors.ts` (`apiErrorMessage`). H3's top-level `error` is a boolean marker, not UI copy; unwrap upstream `data.error` / ProblemDetails `detail` only when they are nonempty strings, otherwise use a static safe fallback. Do not display booleans, objects or arbitrary exception messages; keep BFF transport/cookie/error contracts unchanged.
 - [MANDATORY] `logout()` дёргает `/api/auth/logout`, который полностью удаляет cookie с тем же `path: '/'`.
 
 ## Компоненты и UI
