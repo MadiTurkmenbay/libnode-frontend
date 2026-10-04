@@ -173,6 +173,9 @@ watch(
 
 if (isAuthenticated.value) {
   await fetchCollectionStatus()
+  // SSR pre-flush watchers do not track later changes after their initial run.
+  // Copy the awaited authoritative result before rendering the bookmark label.
+  currentCollectionStatus.value = fetchedCollectionStatus.value ?? null
 }
 
 watch(
