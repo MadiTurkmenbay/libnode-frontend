@@ -72,6 +72,35 @@ export const useCollectionsStore = defineStore('collections', () => {
     }
   }
 
+  async function renameCollection(collectionId: string, name: string) {
+    const trimmedName = name.trim()
+    if (!trimmedName) return null
+
+    isUpdating.value = true
+    try {
+      const response = await executeApiRequest<CollectionDto>(`/api/collections/${collectionId}`, {
+        method: 'PUT',
+        body: { name: trimmedName },
+      })
+      await fetchCollections(true)
+      return response
+    }
+    finally {
+      isUpdating.value = false
+    }
+  }
+
+  async function deleteCollection(collectionId: string) {
+    isUpdating.value = true
+    try {
+      await executeApiRequest(`/api/collections/${collectionId}`, { method: 'DELETE' })
+      await fetchCollections(true)
+    }
+    finally {
+      isUpdating.value = false
+    }
+  }
+
   async function addBookToCollection(collectionId: string, bookId: string) {
     isUpdating.value = true
 
@@ -110,6 +139,8 @@ export const useCollectionsStore = defineStore('collections', () => {
     isUpdating,
     fetchCollections,
     createCollection,
+    renameCollection,
+    deleteCollection,
     addBookToCollection,
     removeBookFromCollection,
   }

@@ -46,6 +46,12 @@
 - [MANDATORY] Локальные `ref` допустимы только для ephemeral UI-state: модалки, поля формы, pending-флаги, локальные optimistic-флаги.
 - [FORBIDDEN] Вводить второй глобальный state manager, event bus или самодельные singleton-объекты для данных, которые уже решает Pinia/Nuxt state.
 
+### Collection management
+
+- [MANDATORY] Rename/delete use `stores/collections.ts` (`renameCollection`/`deleteCollection`) through the existing `executeApiRequest` BFF path, followed by authoritative list refresh. Reuse the backend name-only `CreateCollectionDto` shape and `CollectionDto`; no new DTO, client or store.
+- [MANDATORY] `pages/profile/collections/[id].vue` awaits detail with key `collection:${collectionId}:detail`, refreshes it after rename, and uses the existing Button/Input/Dialog primitives for labeled editing and populated-folder delete confirmation. Disable mutation controls while pending; show safe failure feedback and navigate to collections only after successful delete.
+- [CRITICAL] Clicking the active collection in `CollectionModal` removes the book. Repeat-add idempotency is a separate API behavior; never conflate it with repeat-click UI acceptance. A collection deletion does not delete books or another user's memberships.
+
 ## SSR, auth и cookies
 
 ### BFF auth — HttpOnly cookie + Nuxt-прокси (M-4)
