@@ -37,6 +37,9 @@ async function shareBook() {
 
 const { data: book, pending: bookPending, error: bookError } = await useApiFetch<BookDetailDto>(
   `/api/books/${bookId}`,
+  {
+    key: `book:${bookId}:detail`,
+  },
 )
 
 const chapters = ref<ChapterListDto[]>([])

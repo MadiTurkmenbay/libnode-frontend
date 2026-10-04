@@ -172,3 +172,5 @@
 ### SSR / hydration
 
 - [CRITICAL] `useReaderSettings` exposes `isReady` which becomes `true` only after client hydration. Reader theme/font classes must render the default value on the server and initial client paint, then switch to the stored preference after `isReady` is true to avoid hydration mismatches.
+- [CRITICAL] SSR/client hydration request identity must not depend on transport or `baseURL`. The initial book-detail `useApiFetch` in `pages/books/[id].vue` uses the explicit, book-specific key `book:${bookId}:detail` on both server and client so the browser reuses the SSR payload. Keep the existing SSR backend / browser BFF transports and chapter fetching unchanged.
+- [MANDATORY] `tests/book-detail-identity.test.ts` is a static source-level request-identity guard, not a Nuxt SSR/hydration test. Actual acceptance requires the direct-load/reload, chapter-link, and anonymous reader checks in `tests/book-detail-hydration-smoke.md` against a coordinated rebuilt Docker stack; a green unit suite or an old-image browser pass is not deployed verification.
