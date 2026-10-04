@@ -132,6 +132,7 @@
 - [MANDATORY] Тесты курсорной пагинации и reader-навигации должны покрывать формирование URL, сброс курсора при смене фильтров и обработку `previousChapterId`/`nextChapterId`.
 - [MANDATORY] Каталоговая загрузка и состояние курсора инкапсулированы в `composables/useCatalogCursor.ts`; страница `pages/catalog.vue` использует этот composable и не дублирует логику URL/cursor/пагинации.
 - [FORBIDDEN] Добавлять новые тестовые зависимости без явной необходимости; использовать уже выбранный стек (Vitest, @vue/test-utils, happy-dom).
+- [MANDATORY] `tests/e2e/run-reader-e2e.cjs` is an opt-in infrastructure runner, not an offline Vitest test. Run it only through deployer's `make test-reader-e2e` against its guarded disposable project. Reuse existing translator Playwright tooling without starting translator, inspecting sessions or writing browser artifacts; report static UI/API/infra counts separately. Isolated success is not live deployment proof.
 
 ## Обновление документации
 
